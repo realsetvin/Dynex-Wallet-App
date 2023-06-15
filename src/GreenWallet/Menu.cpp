@@ -27,7 +27,7 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 // Parts of this project are originally copyright by:
-// Copyright (c) 2012-2016, The CryptoNote developers, The Bytecoin developers
+// Copyright (c) 2012-2016, The DynexCN developers, The Bytecoin developers
 // Copyright (c) 2014-2018, The Monero project
 // Copyright (c) 2014-2018, The Forknote developers
 // Copyright (c) 2018, The TurtleCoin developers
@@ -130,8 +130,8 @@ std::string parseCommand(const std::vector<T> &printableCommands,
 }
 
 std::tuple<bool, std::shared_ptr<WalletInfo>>
-    selectionScreen(Config &config, CryptoNote::WalletGreen &wallet,
-                    CryptoNote::INode &node)
+    selectionScreen(Config &config, DynexCN::WalletGreen &wallet,
+                    DynexCN::INode &node)
 {
     while (true)
     {
@@ -203,7 +203,7 @@ std::tuple<bool, std::shared_ptr<WalletInfo>>
     }
 }
 
-bool checkNodeStatus(CryptoNote::INode &node)
+bool checkNodeStatus(DynexCN::INode &node)
 {
     while (node.getLastKnownBlockHeight() == 0)
     {
@@ -267,7 +267,7 @@ std::string getAction(Config &config)
                         "What would you like to do?: ", false, nullptr);
 }
 
-void mainLoop(std::shared_ptr<WalletInfo> walletInfo, CryptoNote::INode &node)
+void mainLoop(std::shared_ptr<WalletInfo> walletInfo, DynexCN::INode &node)
 {
     if (walletInfo->viewWallet)
     {
