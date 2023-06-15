@@ -1,21 +1,21 @@
-// Copyright (c) 2021-2022, The TuringX Project
-// 
+// Copyright (c) 2022-2023, Dynex Developers
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,8 +25,15 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-// Parts of this file are originally copyright (c) 2012-2016 The Cryptonote developers
+//
+// Parts of this project are originally copyright by:
+// Copyright (c) 2012-2017 The DynexCN developers
+// Copyright (c) 2012-2017 The Bytecoin developers
+// Copyright (c) 2014-2017 XDN developers
+// Copyright (c) 2014-2018 The Monero project
+// Copyright (c) 2014-2018 The Forknote developers
+// Copyright (c) 2018-2019 The TurtleCoin developers
+// Copyright (c) 2016-2022 The Karbo developers
 
 #pragma once
 
@@ -65,7 +72,7 @@ private:
   QSystemTrayIcon* m_trayIcon;
   QActionGroup* m_tabActionGroup;
   bool m_isAboutToQuit;
-
+  QList<QAction*> recentFileActionList;
   static MainWindow* m_instance;
 
   MainWindow();
@@ -84,6 +91,8 @@ private:
   void walletSynchronized(int _error, const QString& _error_text);
   void walletOpened(bool _error, const QString& _error_text);
   void walletClosed();
+  void updateRecentActionList();
+  void updateTitle(bool showWallet);
 
   Q_SLOT void createWallet();
   Q_SLOT void openWallet();
@@ -91,10 +100,22 @@ private:
   Q_SLOT void encryptWallet();
   Q_SLOT void aboutQt();
   Q_SLOT void about();
+  Q_SLOT void DisplayCmdLineHelp();
   Q_SLOT void setStartOnLogin(bool _on);
   Q_SLOT void setMinimizeToTray(bool _on);
   Q_SLOT void setCloseToTray(bool _on);
   Q_SLOT void restoreCheckboxes();
+  Q_SLOT void createNonDeterministicWallet();
+  Q_SLOT void closeWallet();
+  Q_SLOT void importKey();
+  Q_SLOT void importKeys();
+  Q_SLOT void resetWallet();
+  Q_SLOT void showPrivateKeys();
+  Q_SLOT void openRecent();
+  Q_SLOT void openLogFile();
+  Q_SLOT void showMnemonicSeed();
+  Q_SLOT void restoreFromMnemonicSeed();
+  Q_SLOT void openConnectionSettings();
 
 #ifdef Q_OS_MAC
 public:

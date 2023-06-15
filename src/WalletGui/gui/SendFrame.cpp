@@ -1,21 +1,21 @@
-// Copyright (c) 2021-2022, The TuringX Project
-// 
+// Copyright (c) 2022-2023, Dynex Developers
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,8 +25,17 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-// Parts of this file are originally copyright (c) 2012-2016 The Cryptonote developers
+//
+// Parts of this project are originally copyright by:
+// Copyright (c) 2012-2017 The DynexCN developers
+// Copyright (c) 2012-2017 The Bytecoin developers
+// Copyright (c) 2014-2017 XDN developers
+// Copyright (c) 2014-2018 The Monero project
+// Copyright (c) 2014-2018 The Forknote developers
+// Copyright (c) 2018-2019 The TurtleCoin developers
+// Copyright (c) 2016-2022 The Karbo developers
+
+#include <QMessageBox>
 
 #include "AddressBookModel.h"
 #include "CurrencyAdapter.h"
@@ -54,6 +63,11 @@ SendFrame::SendFrame(QWidget* _parent) : QFrame(_parent), m_ui(new Ui::SendFrame
     Qt::QueuedConnection);
 
   m_ui->m_tickerLabel->setText(CurrencyAdapter::instance().getCurrencyTicker().toUpper());
+  m_ui->m_feeSpin->setSuffix(" " + CurrencyAdapter::instance().getCurrencyTicker().toUpper());
+  double fee = CurrencyAdapter::instance().formatAmount(NodeAdapter::instance().getMinimalFee()).toDouble();
+  m_ui->m_feeSpin->setValue(fee);
+  m_ui->m_feeSpin->setMinimum(fee);
+  m_ui->m_feeSpin->setMaximum(fee*1000);
 }
 
 SendFrame::~SendFrame() {
@@ -75,6 +89,8 @@ void SendFrame::addRecipientClicked() {
         m_transfers[0]->disableRemoveButton(true);
       }
     });
+
+  connect(newTransfer, &TransferFrame::insertPaymentIdSignal, this, &SendFrame::insertPaymentId, Qt::QueuedConnection);
 }
 
 void SendFrame::clearAllClicked() {
@@ -86,10 +102,33 @@ void SendFrame::clearAllClicked() {
   addRecipientClicked();
   m_ui->m_paymentIdEdit->clear();
   m_ui->m_mixinSlider->setValue(0);
+  m_ui->m_feeSpin->setValue(CurrencyAdapter::instance().formatAmount(NodeAdapter::instance().getMinimalFee()).toDouble());
 }
 
 void SendFrame::sendClicked() {
-  QVector<CryptoNote::WalletLegacyTransfer> walletTransfers;
+
+  double minfee = CurrencyAdapter::instance().formatAmount(NodeAdapter::instance().getMinimalFee()).toDouble();
+  if (m_ui->m_feeSpin->value() > minfee*1000) {
+    QCoreApplication::postEvent(&MainWindow::instance(), new ShowMessageEvent(tr("Fee is too high"), QtCriticalMsg)); 
+    return;
+  }
+  if (m_ui->m_feeSpin->value() < minfee) {
+    QCoreApplication::postEvent(&MainWindow::instance(), new ShowMessageEvent(tr("Fee is too low"), QtCriticalMsg));
+    return;
+  }
+  
+  quint64 totalAmount = 0;
+  QString paymentId = m_ui->m_paymentIdEdit->text();
+  if (!paymentId.isEmpty()) {
+    if (!CurrencyAdapter::instance().validatePaymentId(paymentId)) {
+      QCoreApplication::postEvent(
+        &MainWindow::instance(),
+        new ShowMessageEvent(tr("Invalid paymentID"), QtCriticalMsg));
+      return;
+    }
+  }
+
+  QVector<DynexCN::WalletLegacyTransfer> walletTransfers;
   Q_FOREACH (TransferFrame * transfer, m_transfers) {
     QString address = transfer->getAddress();
     if (!CurrencyAdapter::instance().validateAddress(address)) {
@@ -99,20 +138,38 @@ void SendFrame::sendClicked() {
       return;
     }
 
-    CryptoNote::WalletLegacyTransfer walletTransfer;
-    walletTransfer.address = address.toStdString();
     uint64_t amount = CurrencyAdapter::instance().parseAmount(transfer->getAmountString());
+    if (amount < NodeAdapter::instance().getMinimalFee()) {
+      QCoreApplication::postEvent(&MainWindow::instance(), new ShowMessageEvent(tr("Amount is too low"), QtCriticalMsg));
+      return;
+    }
+
+    DynexCN::WalletLegacyTransfer walletTransfer;
+    walletTransfer.address = address.toStdString();
     walletTransfer.amount = amount;
     walletTransfers.push_back(walletTransfer);
-    QString label = transfer->getLabel();
-    if (!label.isEmpty()) {
-      AddressBookModel::instance().addAddress(label, address);
-    }
+
+    totalAmount += amount;
   }
 
-  quint64 fee = CurrencyAdapter::instance().getMinimumFee();
+  quint64 fee = CurrencyAdapter::instance().parseAmount(m_ui->m_feeSpin->cleanText());
+  if (totalAmount + fee > WalletAdapter::instance().getActualBalance()) {
+    QCoreApplication::postEvent(&MainWindow::instance(), new ShowMessageEvent(tr("Insufficient balance"), QtCriticalMsg));
+    return;
+  }
+
   if (WalletAdapter::instance().isOpen()) {
-    WalletAdapter::instance().sendTransaction(walletTransfers, fee, m_ui->m_paymentIdEdit->text(), m_ui->m_mixinSlider->value());
+    if (QMessageBox::warning(this, tr("Confirm"), tr("Send %1 DNX?").arg(CurrencyAdapter::instance().formatAmount(totalAmount)), 
+      QMessageBox::Ok, QMessageBox::Cancel) == QMessageBox::Ok) {
+      WalletAdapter::instance().sendTransaction(walletTransfers, fee, paymentId, m_ui->m_mixinSlider->value());
+
+      Q_FOREACH (TransferFrame * transfer, m_transfers) {
+        QString label = transfer->getLabel();
+        if (!label.isEmpty()) {
+          AddressBookModel::instance().addAddress(label, transfer->getAddress(), paymentId);
+        }
+      }
+    }
   }
 }
 
@@ -120,7 +177,7 @@ void SendFrame::mixinValueChanged(int _value) {
   m_ui->m_mixinEdit->setText(QString::number(_value));
 }
 
-void SendFrame::sendTransactionCompleted(CryptoNote::TransactionId _id, bool _error, const QString& _errorText) {
+void SendFrame::sendTransactionCompleted(DynexCN::TransactionId _id, bool _error, const QString& _errorText) {
   Q_UNUSED(_id);
   if (_error) {
     QCoreApplication::postEvent(
@@ -134,5 +191,17 @@ void SendFrame::sendTransactionCompleted(CryptoNote::TransactionId _id, bool _er
 void SendFrame::walletActualBalanceUpdated(quint64 _balance) {
   m_ui->m_balanceLabel->setText(CurrencyAdapter::instance().formatAmount(_balance));
 }
-  
+
+void SendFrame::insertPaymentId(QString _paymentId) {
+  if (m_transfers.size() > 1 && !m_ui->m_paymentIdEdit->text().isEmpty() && m_ui->m_paymentIdEdit->text() != _paymentId) {
+    if (_paymentId.isEmpty()) {
+      return;
+    }
+    QCoreApplication::postEvent(
+      &MainWindow::instance(),
+      new ShowMessageEvent(tr("PaymentID can be set only for all transactions at once!"), QtCriticalMsg));
+  }
+  m_ui->m_paymentIdEdit->setText(_paymentId);
+}
+
 }

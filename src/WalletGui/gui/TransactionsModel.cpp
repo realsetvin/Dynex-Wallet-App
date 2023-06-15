@@ -1,21 +1,21 @@
-// Copyright (c) 2021-2022, The TuringX Project
-// 
+// Copyright (c) 2022-2023, Dynex Developers
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,8 +25,15 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-// Parts of this file are originally copyright (c) 2012-2016 The Cryptonote developers
+//
+// Parts of this project are originally copyright by:
+// Copyright (c) 2012-2017 The DynexCN developers
+// Copyright (c) 2012-2017 The Bytecoin developers
+// Copyright (c) 2014-2017 XDN developers
+// Copyright (c) 2014-2018 The Monero project
+// Copyright (c) 2014-2018 The Forknote developers
+// Copyright (c) 2018-2019 The TurtleCoin developers
+// Copyright (c) 2016-2022 The Karbo developers
 
 #include <QDateTime>
 #include <QFont>
@@ -37,6 +44,7 @@
 #include "NodeAdapter.h"
 #include "TransactionsModel.h"
 #include "WalletAdapter.h"
+#include "AddressBookModel.h"
 
 namespace WalletGui {
 
@@ -72,7 +80,7 @@ TransactionsModel::TransactionsModel() : QAbstractItemModel() {
   connect(&WalletAdapter::instance(), &WalletAdapter::reloadWalletTransactionsSignal, this, &TransactionsModel::reloadWalletTransactions,
     Qt::QueuedConnection);
   connect(&WalletAdapter::instance(), &WalletAdapter::walletTransactionCreatedSignal, this,
-    static_cast<void(TransactionsModel::*)(CryptoNote::TransactionId)>(&TransactionsModel::appendTransaction), Qt::QueuedConnection);
+    static_cast<void(TransactionsModel::*)(DynexCN::TransactionId)>(&TransactionsModel::appendTransaction), Qt::QueuedConnection);
   connect(&WalletAdapter::instance(), &WalletAdapter::walletTransactionUpdatedSignal, this, &TransactionsModel::updateWalletTransaction,
     Qt::QueuedConnection);
   connect(&NodeAdapter::instance(), &NodeAdapter::localBlockchainUpdatedSignal, this, &TransactionsModel::localBlockchainUpdated,
@@ -82,15 +90,6 @@ TransactionsModel::TransactionsModel() : QAbstractItemModel() {
 }
 
 TransactionsModel::~TransactionsModel() {
-}
-
-Qt::ItemFlags TransactionsModel::flags(const QModelIndex& _index) const {
-  Qt::ItemFlags flags = Qt::ItemIsEnabled | Qt::ItemNeverHasChildren | Qt::ItemIsSelectable;
-  if(_index.column() == COLUMN_HASH) {
-    flags |= Qt::ItemIsEditable;
-  }
-
-  return flags;
 }
 
 int TransactionsModel::columnCount(const QModelIndex& _parent) const {
@@ -146,13 +145,13 @@ QVariant TransactionsModel::data(const QModelIndex& _index, int _role) const {
     return QVariant();
   }
 
-  CryptoNote::WalletLegacyTransaction transaction;
-  CryptoNote::WalletLegacyTransfer transfer;
-  CryptoNote::TransactionId transactionId = m_transfers.value(_index.row()).first;
-  CryptoNote::TransferId transferId = m_transfers.value(_index.row()).second;
+  DynexCN::WalletLegacyTransaction transaction;
+  DynexCN::WalletLegacyTransfer transfer;
+  DynexCN::TransactionId transactionId = m_transfers.value(_index.row()).first;
+  DynexCN::TransferId transferId = m_transfers.value(_index.row()).second;
 
   if(!WalletAdapter::instance().getTransaction(transactionId, transaction) ||
-    (m_transfers.value(_index.row()).second != CryptoNote::WALLET_LEGACY_INVALID_TRANSFER_ID &&
+    (m_transfers.value(_index.row()).second != DynexCN::WALLET_LEGACY_INVALID_TRANSFER_ID &&
     !WalletAdapter::instance().getTransfer(transferId, transfer))) {
     return QVariant();
   }
@@ -213,16 +212,23 @@ QVariant TransactionsModel::getDisplayRole(const QModelIndex& _index) const {
   }
 
   case COLUMN_HASH:
-    return _index.data(ROLE_HASH).toByteArray().toHex().toUpper();
+    return _index.data(ROLE_HASH).toString(); //ByteArray().toHex().toUpper();
 
   case COLUMN_ADDRESS: {
     TransactionType transactionType = static_cast<TransactionType>(_index.data(ROLE_TYPE).value<quint8>());
-    QString transactionAddress = _index.data(ROLE_ADDRESS).toString();
     if (transactionType == TransactionType::INPUT || transactionType == TransactionType::MINED ||
         transactionType == TransactionType::INOUT) {
       return QString(tr("me (%1)").arg(WalletAdapter::instance().getAddress()));
-    } else if (transactionAddress.isEmpty()) {
+    } 
+
+    QString transactionAddress = _index.data(ROLE_ADDRESS).toString();
+    if (transactionAddress.isEmpty()) {
       return tr("(n/a)");
+    }
+
+    QString label = AddressBookModel::instance().getAddressLabel(transactionAddress, _index.data(ROLE_PAYMENT_ID).toString(), false);
+    if (!label.isEmpty()) {
+      return QString("%1 (%2)").arg(label).arg(transactionAddress);
     }
 
     return transactionAddress;
@@ -281,8 +287,8 @@ QVariant TransactionsModel::getAlignmentRole(const QModelIndex& _index) const {
   return headerData(_index.column(), Qt::Horizontal, Qt::TextAlignmentRole);
 }
 
-QVariant TransactionsModel::getUserRole(const QModelIndex& _index, int _role, CryptoNote::TransactionId _transactionId,
-  CryptoNote::WalletLegacyTransaction& _transaction, CryptoNote::TransferId _transferId, CryptoNote::WalletLegacyTransfer& _transfer) const {
+QVariant TransactionsModel::getUserRole(const QModelIndex& _index, int _role, DynexCN::TransactionId _transactionId,
+  DynexCN::WalletLegacyTransaction& _transaction, DynexCN::TransferId _transferId, DynexCN::WalletLegacyTransfer& _transfer) const {
   switch(_role) {
   case ROLE_DATE:
     return (_transaction.timestamp > 0 ? QDateTime::fromTime_t(_transaction.timestamp) : QDateTime());
@@ -301,16 +307,16 @@ QVariant TransactionsModel::getUserRole(const QModelIndex& _index, int _role, Cr
   }
 
   case ROLE_HASH:
-    return QByteArray(reinterpret_cast<char*>(&_transaction.hash), sizeof(_transaction.hash));
+    return QByteArray(reinterpret_cast<char*>(&_transaction.hash), sizeof(_transaction.hash)).toHex().toUpper();
 
   case ROLE_ADDRESS:
     return QString::fromStdString(_transfer.address);
 
   case ROLE_AMOUNT:
-    return static_cast<qint64>(_transferId == CryptoNote::WALLET_LEGACY_INVALID_TRANSFER_ID ? _transaction.totalAmount : -_transfer.amount);
+    return static_cast<qint64>(_transferId == DynexCN::WALLET_LEGACY_INVALID_TRANSFER_ID ? _transaction.totalAmount : -_transfer.amount);
 
   case ROLE_PAYMENT_ID:
-    return NodeAdapter::instance().extractPaymentId(_transaction.extra);
+    return NodeAdapter::instance().extractPaymentId(_transaction.extra).toLower();
 
   case ROLE_ICON: {
     TransactionType transactionType = static_cast<TransactionType>(_index.data(ROLE_TYPE).value<quint8>());
@@ -327,7 +333,7 @@ QVariant TransactionsModel::getUserRole(const QModelIndex& _index, int _role, Cr
     return static_cast<quint64>(_transaction.fee);
 
   case ROLE_NUMBER_OF_CONFIRMATIONS:
-    return (_transaction.blockHeight == CryptoNote::WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT ? 0 :
+    return (_transaction.blockHeight == DynexCN::WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT ? 0 :
       NodeAdapter::instance().getLastKnownBlockHeight() - _transaction.blockHeight + 1);
 
   case ROLE_COLUMN:
@@ -347,7 +353,7 @@ void TransactionsModel::reloadWalletTransactions() {
   endResetModel();
 
   quint32 row_count = 0;
-  for (CryptoNote::TransactionId transactionId = 0; transactionId < WalletAdapter::instance().getTransactionCount(); ++transactionId) {
+  for (DynexCN::TransactionId transactionId = 0; transactionId < WalletAdapter::instance().getTransactionCount(); ++transactionId) {
     appendTransaction(transactionId, row_count);
   }
 
@@ -357,27 +363,27 @@ void TransactionsModel::reloadWalletTransactions() {
   }
 }
 
-void TransactionsModel::appendTransaction(CryptoNote::TransactionId _transactionId, quint32& _insertedRowCount) {
-  CryptoNote::WalletLegacyTransaction transaction;
+void TransactionsModel::appendTransaction(DynexCN::TransactionId _transactionId, quint32& _insertedRowCount) {
+  DynexCN::WalletLegacyTransaction transaction;
   if (!WalletAdapter::instance().getTransaction(_transactionId, transaction)) {
     return;
   }
 
   if (transaction.transferCount) {
     m_transactionRow[_transactionId] = qMakePair(m_transfers.size(), transaction.transferCount);
-    for (CryptoNote::TransferId transfer_id = transaction.firstTransferId;
+    for (DynexCN::TransferId transfer_id = transaction.firstTransferId;
       transfer_id < transaction.firstTransferId + transaction.transferCount; ++transfer_id) {
       m_transfers.append(TransactionTransferId(_transactionId, transfer_id));
       ++_insertedRowCount;
     }
   } else {
-    m_transfers.append(TransactionTransferId(_transactionId, CryptoNote::WALLET_LEGACY_INVALID_TRANSFER_ID));
+    m_transfers.append(TransactionTransferId(_transactionId, DynexCN::WALLET_LEGACY_INVALID_TRANSFER_ID));
     m_transactionRow[_transactionId] = qMakePair(m_transfers.size() - 1, 1);
     ++_insertedRowCount;
   }
 }
 
-void TransactionsModel::appendTransaction(CryptoNote::TransactionId _transactionId) {
+void TransactionsModel::appendTransaction(DynexCN::TransactionId _transactionId) {
   if (m_transactionRow.contains(_transactionId)) {
     return;
   }
@@ -394,7 +400,7 @@ void TransactionsModel::appendTransaction(CryptoNote::TransactionId _transaction
   }
 }
 
-void TransactionsModel::updateWalletTransaction(CryptoNote::TransactionId _id) {
+void TransactionsModel::updateWalletTransaction(DynexCN::TransactionId _id) {
   quint32 firstRow = m_transactionRow.value(_id).first;
   quint32 lastRow = firstRow + m_transactionRow.value(_id).second - 1;
   Q_EMIT dataChanged(index(firstRow, COLUMN_DATE), index(lastRow, COLUMN_DATE));

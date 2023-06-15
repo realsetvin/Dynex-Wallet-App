@@ -35,34 +35,35 @@
 // Copyright (c) 2018-2019 The TurtleCoin developers
 // Copyright (c) 2016-2022 The Karbo developers
 
-#include "ChangePasswordDialog.h"
+#pragma  once
 
-#include "ui_changepassworddialog.h"
+#include <QDialog>
+#include <QTableView>
+#include <QShowEvent>
+#include <QItemDelegate>
+#include "Settings.h"
+#include "ui_connectionsettingsdialog.h"
+
+namespace Ui {
+class ConnectionSettingsDialog;
+}
 
 namespace WalletGui {
 
-ChangePasswordDialog::ChangePasswordDialog(QWidget* _parent) : QDialog(_parent), m_ui(new Ui::ChangePasswordDialog) {
-  m_ui->setupUi(this);
-  m_ui->m_errorLabel->setText("");
-}
+class ConnectionSettingsDialog : public QDialog {
+  Q_OBJECT
+  Q_DISABLE_COPY(ConnectionSettingsDialog)
 
-ChangePasswordDialog::~ChangePasswordDialog() {
-}
+public:
+  ConnectionSettingsDialog(QWidget* _parent);
+  ~ConnectionSettingsDialog();
 
-QString ChangePasswordDialog::getNewPassword() const {
-  return m_ui->m_newPasswordEdit->text();
-}
+private:
+  QScopedPointer<Ui::ConnectionSettingsDialog> m_ui;
 
-QString ChangePasswordDialog::getOldPassword() const {
-  return m_ui->m_oldPasswordEdit->text();
-}
+  Q_SLOT void onAccept();
 
-void ChangePasswordDialog::checkPassword(const QString& _password) {
-  bool passwordIsConfirmed = !(m_ui->m_newPasswordEdit->text().trimmed().isEmpty() ||
-    m_ui->m_newPasswordConfirmationEdit->text().trimmed().isEmpty() ||
-    m_ui->m_newPasswordEdit->text().compare(m_ui->m_newPasswordConfirmationEdit->text()));
-  m_ui->m_errorLabel->setText(passwordIsConfirmed ? "" : tr("Password not confirmed"));
-  m_ui->m_okButton->setEnabled(passwordIsConfirmed);
-}
+};
 
 }
+

@@ -35,34 +35,32 @@
 // Copyright (c) 2018-2019 The TurtleCoin developers
 // Copyright (c) 2016-2022 The Karbo developers
 
-#include "ChangePasswordDialog.h"
+#include <QDialog>
 
-#include "ui_changepassworddialog.h"
+namespace Ui {
+class VerifyMnemonicSeedDialog;
+}
 
 namespace WalletGui {
 
-ChangePasswordDialog::ChangePasswordDialog(QWidget* _parent) : QDialog(_parent), m_ui(new Ui::ChangePasswordDialog) {
-  m_ui->setupUi(this);
-  m_ui->m_errorLabel->setText("");
-}
+class VerifyMnemonicSeedDialog : public QDialog {
+    Q_OBJECT
 
-ChangePasswordDialog::~ChangePasswordDialog() {
-}
+public:
+    VerifyMnemonicSeedDialog(QWidget * _parent);
+    void walletClosed();
+    ~VerifyMnemonicSeedDialog();
 
-QString ChangePasswordDialog::getNewPassword() const {
-  return m_ui->m_newPasswordEdit->text();
-}
+private:
+    QScopedPointer<Ui::VerifyMnemonicSeedDialog> m_ui;
+    int wordCount = 0;
+    bool m_seedsMatch = false;
 
-QString ChangePasswordDialog::getOldPassword() const {
-  return m_ui->m_oldPasswordEdit->text();
-}
+    void initLanguages();
 
-void ChangePasswordDialog::checkPassword(const QString& _password) {
-  bool passwordIsConfirmed = !(m_ui->m_newPasswordEdit->text().trimmed().isEmpty() ||
-    m_ui->m_newPasswordConfirmationEdit->text().trimmed().isEmpty() ||
-    m_ui->m_newPasswordEdit->text().compare(m_ui->m_newPasswordConfirmationEdit->text()));
-  m_ui->m_errorLabel->setText(passwordIsConfirmed ? "" : tr("Password not confirmed"));
-  m_ui->m_okButton->setEnabled(passwordIsConfirmed);
-}
+    Q_SLOT void onTextChanged();
+    Q_SLOT void languageChanged();
+    Q_SLOT void reject();
+};
 
 }

@@ -35,34 +35,49 @@
 // Copyright (c) 2018-2019 The TurtleCoin developers
 // Copyright (c) 2016-2022 The Karbo developers
 
-#include "ChangePasswordDialog.h"
-
-#include "ui_changepassworddialog.h"
+#include "PrivateKeysDialog.h"
+#include "ui_privatekeysdialog.h"
+#include <QClipboard>
+#include <Common/Base58.h>
+#include <Common/StringTools.h>
+#include "CurrencyAdapter.h"
+#include "WalletAdapter.h"
 
 namespace WalletGui {
 
-ChangePasswordDialog::ChangePasswordDialog(QWidget* _parent) : QDialog(_parent), m_ui(new Ui::ChangePasswordDialog) {
+PrivateKeysDialog::PrivateKeysDialog(QWidget* _parent) : QDialog(_parent), m_ui(new Ui::PrivateKeysDialog) {
   m_ui->setupUi(this);
-  m_ui->m_errorLabel->setText("");
+  connect(&WalletAdapter::instance(), &WalletAdapter::walletInitCompletedSignal, this, &PrivateKeysDialog::walletOpened, Qt::QueuedConnection);
+  connect(&WalletAdapter::instance(), &WalletAdapter::walletCloseCompletedSignal, this, &PrivateKeysDialog::walletClosed, Qt::QueuedConnection);
 }
 
-ChangePasswordDialog::~ChangePasswordDialog() {
+PrivateKeysDialog::~PrivateKeysDialog() {
 }
 
-QString ChangePasswordDialog::getNewPassword() const {
-  return m_ui->m_newPasswordEdit->text();
+void PrivateKeysDialog::walletOpened() {
+  DynexCN::AccountKeys keys;
+  WalletAdapter::instance().getAccountKeys(keys);
+
+  QString privateKeys = QString::fromStdString(Tools::Base58::encode_addr(CurrencyAdapter::instance().getAddressPrefix(),
+    std::string(reinterpret_cast<char*>(&keys), sizeof(keys))));
+
+  m_ui->m_privateKeyEdit->setText(privateKeys);
+
+  QString spendSecretKey = QString::fromStdString(Common::podToHex(keys.spendSecretKey));
+  QString viewSecretKey = QString::fromStdString(Common::podToHex(keys.viewSecretKey));
+
+  m_ui->m_spendSecretKeyEdit->setText(spendSecretKey);
+  m_ui->m_viewSecretKeyEdit->setText(viewSecretKey);
 }
 
-QString ChangePasswordDialog::getOldPassword() const {
-  return m_ui->m_oldPasswordEdit->text();
+void PrivateKeysDialog::walletClosed() {
+  m_ui->m_privateKeyEdit->clear();
+  m_ui->m_spendSecretKeyEdit->clear();
+  m_ui->m_viewSecretKeyEdit->clear();
 }
 
-void ChangePasswordDialog::checkPassword(const QString& _password) {
-  bool passwordIsConfirmed = !(m_ui->m_newPasswordEdit->text().trimmed().isEmpty() ||
-    m_ui->m_newPasswordConfirmationEdit->text().trimmed().isEmpty() ||
-    m_ui->m_newPasswordEdit->text().compare(m_ui->m_newPasswordConfirmationEdit->text()));
-  m_ui->m_errorLabel->setText(passwordIsConfirmed ? "" : tr("Password not confirmed"));
-  m_ui->m_okButton->setEnabled(passwordIsConfirmed);
+void PrivateKeysDialog::copyKey() {
+  QApplication::clipboard()->setText(m_ui->m_privateKeyEdit->toPlainText());
 }
 
 }

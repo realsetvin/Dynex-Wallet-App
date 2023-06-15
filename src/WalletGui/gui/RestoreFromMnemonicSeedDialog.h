@@ -35,34 +35,38 @@
 // Copyright (c) 2018-2019 The TurtleCoin developers
 // Copyright (c) 2016-2022 The Karbo developers
 
-#include "ChangePasswordDialog.h"
+#pragma once
 
-#include "ui_changepassworddialog.h"
+#include <QDialog>
+#include <DynexCN.h>
+
+namespace Ui {
+class RestoreFromMnemonicSeedDialog;
+}
 
 namespace WalletGui {
 
-ChangePasswordDialog::ChangePasswordDialog(QWidget* _parent) : QDialog(_parent), m_ui(new Ui::ChangePasswordDialog) {
-  m_ui->setupUi(this);
-  m_ui->m_errorLabel->setText("");
-}
+class RestoreFromMnemonicSeedDialog : public QDialog {
+  Q_OBJECT
 
-ChangePasswordDialog::~ChangePasswordDialog() {
-}
+public:
+  RestoreFromMnemonicSeedDialog(QWidget* _parent);
+  ~RestoreFromMnemonicSeedDialog();
 
-QString ChangePasswordDialog::getNewPassword() const {
-  return m_ui->m_newPasswordEdit->text();
-}
+  QString getSeedString() const;
+  QString getFilePath() const;
+  quint32 getSyncHeight() const;
+  DynexCN::AccountKeys getAccountKeys() const;
 
-QString ChangePasswordDialog::getOldPassword() const {
-  return m_ui->m_oldPasswordEdit->text();
-}
+private:
+  QScopedPointer<Ui::RestoreFromMnemonicSeedDialog> m_ui;
 
-void ChangePasswordDialog::checkPassword(const QString& _password) {
-  bool passwordIsConfirmed = !(m_ui->m_newPasswordEdit->text().trimmed().isEmpty() ||
-    m_ui->m_newPasswordConfirmationEdit->text().trimmed().isEmpty() ||
-    m_ui->m_newPasswordEdit->text().compare(m_ui->m_newPasswordConfirmationEdit->text()));
-  m_ui->m_errorLabel->setText(passwordIsConfirmed ? "" : tr("Password not confirmed"));
-  m_ui->m_okButton->setEnabled(passwordIsConfirmed);
-}
+  int wordCount = 0;
+  DynexCN::AccountKeys m_keys;
+
+  Q_SLOT void selectPathClicked();
+  Q_SLOT void onTextChanged();
+  Q_SLOT void onAccept();
+};
 
 }

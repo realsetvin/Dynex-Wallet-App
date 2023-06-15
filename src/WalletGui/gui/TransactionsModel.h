@@ -1,21 +1,21 @@
-// Copyright (c) 2021-2022, The TuringX Project
-// 
+// Copyright (c) 2022-2023, Dynex Developers
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,8 +25,15 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-// Parts of this file are originally copyright (c) 2012-2016 The Cryptonote developers
+//
+// Parts of this project are originally copyright by:
+// Copyright (c) 2012-2017 The DynexCN developers
+// Copyright (c) 2012-2017 The Bytecoin developers
+// Copyright (c) 2014-2017 XDN developers
+// Copyright (c) 2014-2018 The Monero project
+// Copyright (c) 2014-2018 The Forknote developers
+// Copyright (c) 2018-2019 The TurtleCoin developers
+// Copyright (c) 2016-2022 The Karbo developers
 
 #pragma once
 
@@ -37,7 +44,7 @@
 
 namespace WalletGui {
 
-typedef QPair<CryptoNote::TransactionId, CryptoNote::TransferId> TransactionTransferId;
+typedef QPair<DynexCN::TransactionId, DynexCN::TransferId> TransactionTransferId;
 
 class TransactionsModel : public QAbstractItemModel {
   Q_OBJECT
@@ -57,7 +64,6 @@ public:
 
   static TransactionsModel& instance();
 
-  Qt::ItemFlags flags(const QModelIndex& _index) const Q_DECL_OVERRIDE;
   int columnCount(const QModelIndex& _parent = QModelIndex()) const Q_DECL_OVERRIDE;
   int rowCount(const QModelIndex& _parent = QModelIndex()) const Q_DECL_OVERRIDE;
 
@@ -70,7 +76,7 @@ public:
 
 private:
   QVector<TransactionTransferId> m_transfers;
-  QHash<CryptoNote::TransactionId, QPair<quint32, quint32> > m_transactionRow;
+  QHash<DynexCN::TransactionId, QPair<quint32, quint32> > m_transactionRow;
 
   TransactionsModel();
   ~TransactionsModel();
@@ -78,13 +84,13 @@ private:
   QVariant getDisplayRole(const QModelIndex& _index) const;
   QVariant getDecorationRole(const QModelIndex& _index) const;
   QVariant getAlignmentRole(const QModelIndex& _index) const;
-  QVariant getUserRole(const QModelIndex& _index, int _role, CryptoNote::TransactionId _transactionId, CryptoNote::WalletLegacyTransaction& _transaction,
-    CryptoNote::TransferId _transferId, CryptoNote::WalletLegacyTransfer& _transfer) const;
+  QVariant getUserRole(const QModelIndex& _index, int _role, DynexCN::TransactionId _transactionId, DynexCN::WalletLegacyTransaction& _transaction,
+    DynexCN::TransferId _transferId, DynexCN::WalletLegacyTransfer& _transfer) const;
 
   void reloadWalletTransactions();
-  void appendTransaction(CryptoNote::TransactionId _id, quint32& _row_count);
-  void appendTransaction(CryptoNote::TransactionId _id);
-  void updateWalletTransaction(CryptoNote::TransactionId _id);
+  void appendTransaction(DynexCN::TransactionId _id, quint32& _row_count);
+  void appendTransaction(DynexCN::TransactionId _id);
+  void updateWalletTransaction(DynexCN::TransactionId _id);
   void localBlockchainUpdated(quint64 _height);
   void reset();
 };

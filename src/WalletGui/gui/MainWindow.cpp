@@ -1,21 +1,21 @@
-// Copyright (c) 2021-2022, The TuringX Project
-// 
+// Copyright (c) 2022-2023, Dynex Developers
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,8 +25,15 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-// Parts of this file are originally copyright (c) 2012-2016 The Cryptonote developers
+//
+// Parts of this project are originally copyright by:
+// Copyright (c) 2012-2017 The DynexCN developers
+// Copyright (c) 2012-2017 The Bytecoin developers
+// Copyright (c) 2014-2017 XDN developers
+// Copyright (c) 2014-2018 The Monero project
+// Copyright (c) 2014-2018 The Forknote developers
+// Copyright (c) 2018-2019 The TurtleCoin developers
+// Copyright (c) 2016-2022 The Karbo developers
 
 #include <QCloseEvent>
 #include <QFileDialog>
@@ -34,9 +41,13 @@
 #include <QMessageBox>
 #include <QSystemTrayIcon>
 #include <QTimer>
+#include <QDesktopServices>
+#include <QStandardPaths>
+#include <QFileInfo>
+#include <QFontDatabase>
+
 #include <Common/Util.h>
 
-#include "AboutDialog.h"
 #include "AnimatedLabel.h"
 #include "ChangePasswordDialog.h"
 #include "CurrencyAdapter.h"
@@ -48,8 +59,16 @@
 #include "Settings.h"
 #include "WalletAdapter.h"
 #include "WalletEvents.h"
-
+#include "PrivateKeysDialog.h"
+#include "ImportKeyDialog.h"
+#include "ImportKeysDialog.h"
+#include "RestoreFromMnemonicSeedDialog.h"
+#include "MnemonicSeedDialog.h"
+#include "ConnectionSettings.h"
+#include "CommandLineParser.h"
+#include "version.h"
 #include "ui_mainwindow.h"
+
 
 namespace WalletGui {
 
@@ -63,8 +82,7 @@ MainWindow& MainWindow::instance() {
   return *m_instance;
 }
 
-MainWindow::MainWindow() : QMainWindow(), m_ui(new Ui::MainWindow), m_trayIcon(nullptr), m_tabActionGroup(new QActionGroup(this)),
-  m_isAboutToQuit(false) {
+MainWindow::MainWindow() : QMainWindow(), m_ui(new Ui::MainWindow), m_trayIcon(nullptr), m_tabActionGroup(new QActionGroup(this)), m_isAboutToQuit(false) {
   m_ui->setupUi(this);
   m_connectionStateIconLabel = new QLabel(this);
   m_encryptionStateIconLabel = new QLabel(this);
@@ -94,14 +112,13 @@ void MainWindow::connectToSignals() {
 }
 
 void MainWindow::initUi() {
-  setWindowTitle(QString("%1 Wallet %2").arg(CurrencyAdapter::instance().getCurrencyDisplayName()).arg(Settings::instance().getVersion()));
+  updateTitle(false);
 #ifdef Q_OS_WIN32
   if (QSystemTrayIcon::isSystemTrayAvailable()) {
     m_trayIcon = new QSystemTrayIcon(QPixmap(":images/cryptonote"), this);
     connect(m_trayIcon, &QSystemTrayIcon::activated, this, &MainWindow::trayActivated);
   }
 #endif
-  m_ui->m_aboutCryptonoteAction->setText(QString(tr("About %1 Wallet")).arg(CurrencyAdapter::instance().getCurrencyDisplayName()));
 
   m_ui->m_overviewFrame->hide();
   m_ui->m_sendFrame->hide();
@@ -123,6 +140,18 @@ void MainWindow::initUi() {
   qobject_cast<AnimatedLabel*>(m_synchronizationStateIconLabel)->setSprite(QPixmap(":icons/sync_sprite"), QSize(16, 16), 5, 24);
   m_connectionStateIconLabel->setPixmap(QPixmap(":icons/disconnected").scaled(16, 16, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 
+  m_ui->menuRecent_wallets->setVisible(false);
+  QAction* recentWalletAction = 0;
+  for(int i = 0; i < maxRecentFiles; ++i){
+    recentWalletAction = new QAction(this);
+    recentWalletAction->setVisible(false);
+    QObject::connect(recentWalletAction, SIGNAL(triggered()), this, SLOT(openRecent()));
+    recentFileActionList.append(recentWalletAction);
+  }
+  for(int i = 0; i < maxRecentFiles; ++i)
+    m_ui->menuRecent_wallets->addAction(recentFileActionList.at(i));
+  updateRecentActionList();
+
 #ifdef Q_OS_MAC
   installDockHandler();
 #endif
@@ -133,6 +162,12 @@ void MainWindow::initUi() {
 #endif
   // restore states
   QTimer::singleShot(0, this, SLOT(restoreCheckboxes()));
+
+#ifdef Q_OS_WIN
+  QDir::setCurrent(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
+#else
+  QDir::setCurrent(QDir::homePath());
+#endif
 }
 
 void MainWindow::restoreCheckboxes() {
@@ -236,38 +271,37 @@ bool MainWindow::event(QEvent* _event) {
 }
 
 void MainWindow::createWallet() {
-  QString filePath = QFileDialog::getSaveFileName(this, tr("New wallet file"),
-  #ifdef Q_OS_WIN
-      QApplication::applicationDirPath(),
-  #else
-      QDir::homePath(),
-  #endif
-      tr("Wallets (*.wallet)")
-      );
+  QString filePath = QFileDialog::getSaveFileName(this, tr("New wallet file"), nullptr, tr("Wallets (*.wallet)"));
+  if (!filePath.isEmpty() && !filePath.endsWith(".wallet")) {
+    filePath.append(".wallet");
+  }
 
-    if (!filePath.isEmpty() && !filePath.endsWith(".wallet")) {
-      filePath.append(".wallet");
+  if (!filePath.isEmpty()) {
+    if (WalletAdapter::instance().isOpen()) {
+      WalletAdapter::instance().close();
     }
+    WalletAdapter::instance().setWalletFile(filePath);
+    WalletAdapter::instance().createWallet();
+  }
+}
 
-    if (!filePath.isEmpty() && !QFile::exists(filePath)) {
-      if (WalletAdapter::instance().isOpen()) {
-        WalletAdapter::instance().close();
-      }
+void MainWindow::createNonDeterministicWallet() {
+  QString filePath = QFileDialog::getSaveFileName(this, tr("New wallet file"), nullptr, tr("Wallets (*.wallet)"));
+  if (!filePath.isEmpty() && !filePath.endsWith(".wallet")) {
+    filePath.append(".wallet");
+  }
 
-      WalletAdapter::instance().setWalletFile(filePath);
-      WalletAdapter::instance().open("");
+  if (!filePath.isEmpty()) {
+    if (WalletAdapter::instance().isOpen()) {
+      WalletAdapter::instance().close();
     }
+    WalletAdapter::instance().setWalletFile(filePath);
+    WalletAdapter::instance().createNonDeterministic();
+  }
 }
 
 void MainWindow::openWallet() {
-  QString filePath = QFileDialog::getOpenFileName(this, tr("Open .wallet/.keys file"),
-#ifdef Q_OS_WIN
-    QApplication::applicationDirPath(),
-#else
-    QDir::homePath(),
-#endif
-    tr("Wallet (*.wallet *.keys)"));
-
+  QString filePath = QFileDialog::getOpenFileName(this, tr("Open .wallet/.keys file"), nullptr, tr("Wallet (*.wallet *.keys)"));
   if (!filePath.isEmpty()) {
     if (WalletAdapter::instance().isOpen()) {
       WalletAdapter::instance().close();
@@ -278,22 +312,21 @@ void MainWindow::openWallet() {
   }
 }
 
-void MainWindow::backupWallet() {
-  QString filePath = QFileDialog::getSaveFileName(this, tr("Backup wallet to..."),
-  #ifdef Q_OS_WIN
-      QApplication::applicationDirPath(),
-  #else
-      QDir::homePath(),
-  #endif
-      tr("Wallets (*.wallet)")
-      );
-    if (!filePath.isEmpty() && !filePath.endsWith(".wallet")) {
-      filePath.append(".wallet");
-    }
+void MainWindow::closeWallet() {
+  if (WalletAdapter::instance().isOpen()) {
+    WalletAdapter::instance().close();
+  }
+}
 
-    if (!filePath.isEmpty() && !QFile::exists(filePath)) {
-      WalletAdapter::instance().backup(filePath);
-    }
+void MainWindow::backupWallet() {
+  QString filePath = QFileDialog::getSaveFileName(this, tr("Backup wallet to..."), nullptr, tr("Wallets (*.wallet)"));
+  if (!filePath.isEmpty() && !filePath.endsWith(".wallet")) {
+    filePath.append(".wallet");
+  }
+
+  if (!filePath.isEmpty() && !QFile::exists(filePath)) {
+    WalletAdapter::instance().backup(filePath);
+  }
 }
 
 void MainWindow::encryptWallet() {
@@ -322,32 +355,212 @@ void MainWindow::encryptWallet() {
   }
 }
 
+void MainWindow::openLogFile() {
+  QString pathLog = Settings::instance().getDataDir().absoluteFilePath(QApplication::applicationName() + ".log");
+  if (!pathLog.isEmpty()) {
+    QDesktopServices::openUrl(QUrl::fromLocalFile(pathLog));
+  }
+}
+
+void MainWindow::resetWallet() {
+  Q_ASSERT(WalletAdapter::instance().isOpen());
+  if (QMessageBox::warning(this, tr("Warning"), tr("Your wallet will be reset and restored from blockchain.\n"
+    "Are you sure?"), QMessageBox::Ok, QMessageBox::Cancel) == QMessageBox::Ok) {
+    WalletAdapter::instance().reset();
+    WalletAdapter::instance().open("");
+  }
+}
+
+void MainWindow::importKey() {
+  ImportKeyDialog dlg(this);
+  if (dlg.exec() == QDialog::Accepted) {
+    QString filePath = dlg.getFilePath();
+    if (filePath.isEmpty()) {
+      return;
+    }
+    if (!filePath.endsWith(".wallet")) {
+      filePath.append(".wallet");
+    }
+
+    DynexCN::AccountKeys keys = dlg.getAccountKeys();
+
+    if (WalletAdapter::instance().isOpen()) {
+      WalletAdapter::instance().close();
+    }
+    WalletAdapter::instance().setWalletFile(filePath);
+
+    quint32 syncHeight = dlg.getSyncHeight();
+    if (syncHeight != 0) {
+      WalletAdapter::instance().createWithKeys(keys, syncHeight);
+    } else {
+      WalletAdapter::instance().createWithKeys(keys);
+    }
+  }
+}
+
+void MainWindow::importKeys() {
+  ImportKeysDialog dlg(this);
+  if (dlg.exec() == QDialog::Accepted) {
+    QString filePath = dlg.getFilePath();
+    if (filePath.isEmpty()) {
+      return;
+    }
+    if (!filePath.endsWith(".wallet")) {
+      filePath.append(".wallet");
+    }
+
+    DynexCN::AccountKeys keys = dlg.getAccountKeys();
+
+    if (WalletAdapter::instance().isOpen()) {
+        WalletAdapter::instance().close();
+    }
+    WalletAdapter::instance().setWalletFile(filePath);
+
+    quint32 syncHeight = dlg.getSyncHeight();
+    if (syncHeight != 0) {
+      WalletAdapter::instance().createWithKeys(keys, syncHeight);
+    } else {
+      WalletAdapter::instance().createWithKeys(keys);
+    }
+  }
+}
+
+void MainWindow::restoreFromMnemonicSeed() {
+  RestoreFromMnemonicSeedDialog dlg(this);
+  if (dlg.exec() == QDialog::Accepted) {
+    QString filePath = dlg.getFilePath();
+    if (filePath.isEmpty()) {
+      return;
+    }
+    if (!filePath.endsWith(".wallet")) {
+      filePath.append(".wallet");
+    }
+
+    DynexCN::AccountKeys keys = dlg.getAccountKeys();
+
+    if (WalletAdapter::instance().isOpen()) {
+      WalletAdapter::instance().close();
+    }
+    WalletAdapter::instance().setWalletFile(filePath);
+
+    quint32 syncHeight = dlg.getSyncHeight();
+    if (syncHeight != 0) {
+      WalletAdapter::instance().createWithKeys(keys, syncHeight);
+    } else {
+      WalletAdapter::instance().createWithKeys(keys);
+    }
+  }
+}
+
+void MainWindow::showPrivateKeys() {
+  PrivateKeysDialog dlg(this);
+  dlg.walletOpened();
+  dlg.exec();
+}
+
+void MainWindow::showMnemonicSeed() {
+  MnemonicSeedDialog dlg(this);
+  dlg.walletOpened();
+  dlg.exec();
+}
+
+void MainWindow::openRecent() {
+  QAction *action = qobject_cast<QAction *>(sender());
+  if (action) {
+    QString filePath = action->data().toString();
+    if (!filePath.isEmpty() && QFile::exists(filePath)) {
+      if (WalletAdapter::instance().isOpen()) {
+          WalletAdapter::instance().close();
+      }
+      WalletAdapter::instance().setWalletFile(filePath);
+      WalletAdapter::instance().open("");
+    } else {
+       QMessageBox::warning(this, tr("Recent wallet file not found"), tr("The recent wallet file is missing. Probably it was removed."), QMessageBox::Ok);
+    }
+  }
+}
+
+void MainWindow::updateRecentActionList() {
+  QStringList recentFilePaths = Settings::instance().getRecentWalletsList();
+  if (recentFilePaths.isEmpty())
+    m_ui->menuRecent_wallets->setVisible(false);
+
+  if(recentFilePaths.size() != 0) {
+    int itEnd = 0;
+    if (recentFilePaths.size() <= maxRecentFiles)
+      itEnd = recentFilePaths.size();
+    else
+      itEnd = maxRecentFiles;
+
+    for (int i = 0; i < itEnd; ++i) {
+      QString strippedName = QFileInfo(recentFilePaths.at(i)).absoluteFilePath();
+      recentFileActionList.at(i)->setText(strippedName);
+      recentFileActionList.at(i)->setData(recentFilePaths.at(i));
+      recentFileActionList.at(i)->setVisible(true);
+    }
+    for (int i = itEnd; i < maxRecentFiles; ++i)
+      recentFileActionList.at(i)->setVisible(false);
+  } else {
+    m_ui->menuRecent_wallets->setVisible(false);
+  }
+}
+
 void MainWindow::aboutQt() {
   QMessageBox::aboutQt(this);
 }
 
+void MainWindow::DisplayCmdLineHelp() {
+    CommandLineParser cmdLineParser(nullptr);
+    QMessageBox *msg = new QMessageBox(QMessageBox::Information, QObject::tr("Help"),
+                       cmdLineParser.getHelpText(),
+                       QMessageBox::Ok, this);
+    QFont font = QFontDatabase::systemFont(QFontDatabase::FixedFont);
+    msg->setFont(font);
+    QSpacerItem* horizontalSpacer = new QSpacerItem(650, 0, QSizePolicy::Minimum, QSizePolicy::Expanding);
+    QGridLayout* layout = (QGridLayout*)msg->layout();
+    layout->addItem(horizontalSpacer, layout->rowCount(), 0, 1, layout->columnCount());
+    msg->exec();
+}
+
+void MainWindow::openConnectionSettings() {
+  ConnectionSettingsDialog dlg(&MainWindow::instance());
+  dlg.exec();
+}
+
 void MainWindow::setStartOnLogin(bool _on) {
   Settings::instance().setStartOnLoginEnabled(_on);
-  //m_ui->m_startOnLoginAction->setChecked(_on);
 }
 
 void MainWindow::setMinimizeToTray(bool _on) {
 #ifdef Q_OS_WIN
   Settings::instance().setMinimizeToTrayEnabled(_on);
-  //m_ui->m_minimizeToTrayAction->setChecked(_on);
 #endif
 }
 
 void MainWindow::setCloseToTray(bool _on) {
 #ifdef Q_OS_WIN
   Settings::instance().setCloseToTrayEnabled(_on);
-  //m_ui->m_closeToTrayAction->setChecked(_on);
 #endif
 }
 
 void MainWindow::about() {
-  AboutDialog dlg(this);
-  dlg.exec();
+  const QString translatedTextAboutQtText = tr(
+    "<h2>Dynex wallet v%1</h2>"
+    "<h3><a href=\"%2\">%2</a></h3>"
+    "<h3>Dynex is a next-generation platform for neuromorphic computing</h3>"
+    "<p>%3</p>" 
+    "<p>Parts of this project are originally copyright by:"
+    "<br>Copyright (c) 2012-2017 The DynexCN developers"
+    "<br>Copyright (c) 2012-2017 The Bytecoin developers"
+    "<br>Copyright (c) 2014-2017 XDN developers"
+    "<br>Copyright (c) 2014-2018 The Monero project"
+    "<br>Copyright (c) 2014-2018 The Forknote developers"
+    "<br>Copyright (c) 2018-2019 The TurtleCoin developers"
+    "<br>Copyright (c) 2016-2022 The Karbo developers</p>"
+    "<p><a href=\"%4\">%4</a></p>"
+    ).arg(Settings::instance().getVersion(), QStringLiteral(CN_PROJECT_SITE), QStringLiteral(CN_PROJECT_COPYRIGHT), QStringLiteral("http://opensource.org/licenses/MIT"));
+
+  QMessageBox::about(this, tr("About wallet"), translatedTextAboutQtText);
 }
 
 void MainWindow::setStatusBarText(const QString& _text) {
@@ -358,6 +571,9 @@ void MainWindow::showMessage(const QString& _text, QtMsgType _type) {
   switch (_type) {
   case QtCriticalMsg:
     QMessageBox::critical(this, tr("Wallet error"), _text);
+    break;
+  case QtWarningMsg:
+    QMessageBox::warning(this, tr("Warning"), _text);
     break;
   case QtDebugMsg:
     QMessageBox::information(this, tr("Wallet"), _text);
@@ -407,11 +623,17 @@ void MainWindow::walletSynchronized(int _error, const QString& _error_text) {
 
 void MainWindow::walletOpened(bool _error, const QString& _error_text) {
   if (!_error) {
+    updateTitle(true);
     m_encryptionStateIconLabel->show();
     m_synchronizationStateIconLabel->show();
     m_ui->m_backupWalletAction->setEnabled(true);
+    m_ui->m_closeWalletAction->setEnabled(true);
+    m_ui->m_showPrivateKey->setEnabled(true);
+    m_ui->m_resetAction->setEnabled(true);
+    if (WalletAdapter::instance().isDeterministic()) {
+       m_ui->m_showMnemonicSeedAction->setEnabled(true);
+    }
     encryptedFlagChanged(Settings::instance().isEncrypted());
-
     QList<QAction*> tabActions = m_tabActionGroup->actions();
     Q_FOREACH(auto action, tabActions) {
       action->setEnabled(true);
@@ -419,15 +641,29 @@ void MainWindow::walletOpened(bool _error, const QString& _error_text) {
 
     m_ui->m_overviewAction->trigger();
     m_ui->m_overviewFrame->show();
+
+    updateRecentActionList();
+    WalletAdapter::instance().autoBackup();
+
+    QString wallet(Settings::instance().getWalletFile());
+    if (!wallet.isEmpty()) {
+      QFileInfo fi(wallet);
+      QDir::setCurrent(fi.canonicalPath());
+    }
   } else {
     walletClosed();
   }
 }
 
 void MainWindow::walletClosed() {
+  updateTitle(false);
   m_ui->m_backupWalletAction->setEnabled(false);
   m_ui->m_encryptWalletAction->setEnabled(false);
   m_ui->m_changePasswordAction->setEnabled(false);
+  m_ui->m_closeWalletAction->setEnabled(false);
+  m_ui->m_showPrivateKey->setEnabled(false);
+  m_ui->m_resetAction->setEnabled(false);
+  m_ui->m_showMnemonicSeedAction->setEnabled(false);
   m_ui->m_overviewFrame->hide();
   m_ui->m_sendFrame->hide();
   m_ui->m_transactionsFrame->hide();
@@ -438,6 +674,7 @@ void MainWindow::walletClosed() {
   Q_FOREACH(auto action, tabActions) {
     action->setEnabled(false);
   }
+  updateRecentActionList();
 }
 
 #ifdef Q_OS_WIN
@@ -447,5 +684,19 @@ void MainWindow::trayActivated(QSystemTrayIcon::ActivationReason _reason) {
 }
 #endif
 
+void MainWindow::updateTitle(bool showWallet) {
+  QString wallet;
+  if (showWallet) wallet = Settings::instance().getWalletFile();
+
+  if (!wallet.isEmpty()) {
+    QFileInfo fi(wallet);
+    wallet = fi.baseName();
+  }
+  if (wallet.isEmpty()) {
+    setWindowTitle(QString("%1 Wallet %2").arg(CurrencyAdapter::instance().getCurrencyDisplayName()).arg(Settings::instance().getVersion()));
+  } else {
+    setWindowTitle(QString("%1 Wallet %2 - %3").arg(CurrencyAdapter::instance().getCurrencyDisplayName()).arg(Settings::instance().getVersion()).arg(wallet));
+  }
+}
 
 }

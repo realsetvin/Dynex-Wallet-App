@@ -35,34 +35,49 @@
 // Copyright (c) 2018-2019 The TurtleCoin developers
 // Copyright (c) 2016-2022 The Karbo developers
 
-#include "ChangePasswordDialog.h"
-
-#include "ui_changepassworddialog.h"
+#include "MnemonicSeedDialog.h"
+#include "ui_mnemonicseeddialog.h"
+#include "CurrencyAdapter.h"
+#include "WalletAdapter.h"
+#include "Mnemonics/electrum-words.h"
+#include "Settings.h"
 
 namespace WalletGui {
 
-ChangePasswordDialog::ChangePasswordDialog(QWidget* _parent) : QDialog(_parent), m_ui(new Ui::ChangePasswordDialog) {
+MnemonicSeedDialog::MnemonicSeedDialog(QWidget* _parent) : QDialog(_parent), m_ui(new Ui::MnemonicSeedDialog) {
   m_ui->setupUi(this);
-  m_ui->m_errorLabel->setText("");
+  connect(&WalletAdapter::instance(), &WalletAdapter::walletInitCompletedSignal, this, &MnemonicSeedDialog::walletOpened, Qt::QueuedConnection);
+  connect(&WalletAdapter::instance(), &WalletAdapter::walletCloseCompletedSignal, this, &MnemonicSeedDialog::walletClosed, Qt::QueuedConnection);
+  initLanguages();
+  m_ui->m_languageCombo->setCurrentIndex(m_ui->m_languageCombo->findData("English", Qt::DisplayRole));
 }
 
-ChangePasswordDialog::~ChangePasswordDialog() {
+MnemonicSeedDialog::~MnemonicSeedDialog() {
 }
 
-QString ChangePasswordDialog::getNewPassword() const {
-  return m_ui->m_newPasswordEdit->text();
+void MnemonicSeedDialog::walletOpened() {
+  DynexCN::AccountKeys keys;
+  WalletAdapter::instance().getAccountKeys(keys);
+  QString mnemonicSeed = WalletAdapter::instance().getMnemonicSeed(m_ui->m_languageCombo->currentText());
+  m_ui->m_mnemonicSeedEdit->setText(mnemonicSeed);
 }
 
-QString ChangePasswordDialog::getOldPassword() const {
-  return m_ui->m_oldPasswordEdit->text();
+void MnemonicSeedDialog::walletClosed() {
+  m_ui->m_mnemonicSeedEdit->clear();
 }
 
-void ChangePasswordDialog::checkPassword(const QString& _password) {
-  bool passwordIsConfirmed = !(m_ui->m_newPasswordEdit->text().trimmed().isEmpty() ||
-    m_ui->m_newPasswordConfirmationEdit->text().trimmed().isEmpty() ||
-    m_ui->m_newPasswordEdit->text().compare(m_ui->m_newPasswordConfirmationEdit->text()));
-  m_ui->m_errorLabel->setText(passwordIsConfirmed ? "" : tr("Password not confirmed"));
-  m_ui->m_okButton->setEnabled(passwordIsConfirmed);
+void MnemonicSeedDialog::initLanguages() {
+  std::vector<std::string> languages;
+  Crypto::ElectrumWords::get_language_list(languages);
+  for (size_t i = 0; i < languages.size(); ++i)
+  {
+    m_ui->m_languageCombo->addItem(QString::fromStdString(languages[i]));
+  }
+}
+
+void MnemonicSeedDialog::languageChanged() {
+  QString mnemonicSeed = WalletAdapter::instance().getMnemonicSeed(m_ui->m_languageCombo->currentText());
+  m_ui->m_mnemonicSeedEdit->setText(mnemonicSeed);
 }
 
 }
