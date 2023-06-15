@@ -1,6 +1,6 @@
 # Dynex GUI Wallet
 
-## Release Notes Version 2.2.2.(rev.B)
+## Release Notes Version 2.2.2(rev.B)
 
 - added mnemonic phrase import, export, new wallet creation;
 - added private keys export and import;
