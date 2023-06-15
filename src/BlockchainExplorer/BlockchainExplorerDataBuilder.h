@@ -27,7 +27,7 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 // Parts of this project are originally copyright by:
-// Copyright (c) 2012-2016, The CryptoNote developers, The Bytecoin developers
+// Copyright (c) 2012-2016, The DynexCN developers, The Bytecoin developers
 // Copyright (c) 2014-2018, The Monero project
 // Copyright (c) 2014-2018, The Forknote developers
 // Copyright (c) 2018, The TurtleCoin developers
@@ -40,16 +40,16 @@
 #include <vector>
 #include <array>
 
-#include "CryptoNoteProtocol/ICryptoNoteProtocolQuery.h"
-#include "CryptoNoteCore/ICore.h"
+#include "DynexCNProtocol/IDynexCNProtocolQuery.h"
+#include "DynexCNCore/ICore.h"
 #include "BlockchainExplorerData.h"
 
-namespace CryptoNote {
+namespace DynexCN {
 
 class BlockchainExplorerDataBuilder
 {
 public:
-  BlockchainExplorerDataBuilder(CryptoNote::ICore& core, CryptoNote::ICryptoNoteProtocolQuery& protocol);
+  BlockchainExplorerDataBuilder(DynexCN::ICore& core, DynexCN::IDynexCNProtocolQuery& protocol);
 
   BlockchainExplorerDataBuilder(const BlockchainExplorerDataBuilder&) = delete;
   BlockchainExplorerDataBuilder(BlockchainExplorerDataBuilder&&) = delete;
@@ -67,7 +67,7 @@ private:
   bool fillTxExtra(const std::vector<uint8_t>& rawExtra, TransactionExtraDetails2& extraDetails);
   size_t median(std::vector<size_t>& v);
 
-  CryptoNote::ICore& core;
-  CryptoNote::ICryptoNoteProtocolQuery& protocol;
+  DynexCN::ICore& core;
+  DynexCN::IDynexCNProtocolQuery& protocol;
 };
 }

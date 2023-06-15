@@ -27,7 +27,7 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 // Parts of this project are originally copyright by:
-// Copyright (c) 2012-2016, The CryptoNote developers, The Bytecoin developers
+// Copyright (c) 2012-2016, The DynexCN developers, The Bytecoin developers
 // Copyright (c) 2014-2018, The Monero project
 // Copyright (c) 2014-2018, The Forknote developers
 // Copyright (c) 2018, The TurtleCoin developers
@@ -41,14 +41,14 @@
 #include <boost/range/combine.hpp>
 
 #include "Common/StringTools.h"
-#include "CryptoNoteCore/CryptoNoteFormatUtils.h"
-#include "CryptoNoteCore/CryptoNoteTools.h"
-#include "CryptoNoteCore/TransactionExtra.h"
-#include "CryptoNoteConfig.h"
+#include "DynexCNCore/DynexCNFormatUtils.h"
+#include "DynexCNCore/DynexCNTools.h"
+#include "DynexCNCore/TransactionExtra.h"
+#include "DynexCNConfig.h"
 
-namespace CryptoNote {
+namespace DynexCN {
 
-BlockchainExplorerDataBuilder::BlockchainExplorerDataBuilder(CryptoNote::ICore& core, CryptoNote::ICryptoNoteProtocolQuery& protocol) :
+BlockchainExplorerDataBuilder::BlockchainExplorerDataBuilder(DynexCN::ICore& core, DynexCN::IDynexCNProtocolQuery& protocol) :
 core(core),
 protocol(protocol) {
 }
@@ -152,7 +152,7 @@ bool BlockchainExplorerDataBuilder::fillBlockDetails(const Block &block, BlockDe
   }
   blockDetails.sizeMedian = median(blocksSizes);
 
-  size_t blockGrantedFullRewardZone = CryptoNote::parameters::CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE;
+  size_t blockGrantedFullRewardZone = DynexCN::parameters::CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE;
   blockDetails.effectiveSizeMedian = std::max(blockDetails.sizeMedian, (uint64_t) blockGrantedFullRewardZone);
 
   size_t blockSize = 0;
@@ -308,7 +308,7 @@ bool BlockchainExplorerDataBuilder::fillTransactionDetails(const Transaction& tr
       }
 	  txInDetails = txInGenDetails;
     } else if (txIn.type() == typeid(KeyInput)) {
-      CryptoNote::KeyInputDetails txInToKeyDetails;
+      DynexCN::KeyInputDetails txInToKeyDetails;
       const KeyInput& txInToKey = boost::get<KeyInput>(txIn);
       txInToKeyDetails.input = txInToKey; 
       std::list<std::pair<Crypto::Hash, size_t>> outputReferences;
