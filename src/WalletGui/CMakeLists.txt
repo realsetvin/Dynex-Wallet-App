@@ -27,7 +27,7 @@ qt5_add_resources(RCC ${QRC})
 
 if (WIN32)
   if (NOT MSVC)
-	message(FATAL_ERROR "Only MSVC is supported on this platform")
+	#message(FATAL_ERROR "Only MSVC is supported on this platform")
   endif ()
   add_definitions(/D_CRT_SECURE_NO_WARNINGS /D_WIN32_WINNT=0x0600 /DSTATICLIB)
 
@@ -76,7 +76,7 @@ endif ()
 
 add_executable(WalletGui ${BUILD_PLATFORM} ${BUILD_RESOURCES} ${SOURCES} ${HEADERS} ${UIS} ${RCC})
 set_target_properties(WalletGui PROPERTIES COMPILE_DEFINITIONS _GNU_SOURCE)
-target_link_libraries(WalletGui Wallet Mnemonics NodeRpcProxy Transfers CryptoNoteCore Crypto P2P Rpc Http Serialization System Logging Common InProcessNode BlockchainExplorer libminiupnpc-static ${Boost_LIBRARIES} ${CURL_LIBRARIES})
+target_link_libraries(WalletGui Wallet Mnemonics NodeRpcProxy Transfers DynexCNCore Crypto P2P Rpc Http Serialization System Logging Common InProcessNode BlockchainExplorer libminiupnpc-static ${Boost_LIBRARIES} ${CURL_LIBRARIES})
 
 if (APPLE)
   qt5_use_modules(WalletGui PrintSupport)

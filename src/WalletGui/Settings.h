@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022, The TuringX Project
+// Copyright (c) 2021-2023, Dynex Developers
 // 
 // All rights reserved.
 // 
@@ -26,15 +26,24 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
-// Parts of this file are originally copyright (c) 2012-2016 The Cryptonote developers
+// Parts of this project are originally copyright by:
+// Copyright (c) 2012-2016, The DynexCN developers, The Bytecoin developers
+// Copyright (c) 2014-2018, The Monero project
+// Copyright (c) 2014-2018, The Forknote developers
+// Copyright (c) 2018, The TurtleCoin developers
+// Copyright (c) 2016-2018, The Karbowanec developers
+// Copyright (c) 2017-2022, The CROAT.community developers
 
 #pragma once
 
 #include <QDir>
 #include <QJsonObject>
+#include <QJsonArray>
 #include <QObject>
 
 namespace WalletGui {
+
+const int maxRecentFiles = 16;
 
 class CommandLineParser;
 
@@ -52,16 +61,23 @@ public:
   bool hasHideMyPortOption() const;
   bool isTestnet() const;
   QDir getDataDir() const;
+  void setP2pBindIp(const QString& _bindIp);
   QString getP2pBindIp() const;
-  quint16 getLocalRpcPort() const;
+  void setP2pBindPort(const quint16& _bindPort);
   quint16 getP2pBindPort() const;
+  void setP2pExternalPort(const quint16& _externalPort);
   quint16 getP2pExternalPort() const;
+  bool hasP2pBindIp() const;
+  bool hasP2pBindPort() const;
+  bool hasP2pExternalPort() const;
+
   QStringList getExclusiveNodes() const;
   QStringList getPeers() const;
   QStringList getPriorityNodes() const;
   QStringList getSeedNodes() const;
 
   QString getWalletFile() const;
+  QStringList getRecentWalletsList() const;
   QString getAddressBookFile() const;
   bool isEncrypted() const;
   QString getVersion() const;
@@ -79,6 +95,13 @@ public:
   void setMinimizeToTrayEnabled(bool _enable);
   void setCloseToTrayEnabled(bool _enable);
 #endif
+
+  void setConnection(const QString& _connection);
+  QString getConnection() const;
+  void setLocalDaemonPort(const quint16& _daemonPort);
+  quint16 getLocalDaemonPort() const;
+  void setRemoteNode(const QString& _remoteNode);
+  QString getRemoteNode() const;
 
 private:
   QJsonObject m_settings;

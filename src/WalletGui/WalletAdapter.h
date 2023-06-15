@@ -1,21 +1,21 @@
-// Copyright (c) 2021-2022, The TuringX Project
-// 
+// Copyright (c) 2022-2023, Dynex Developers
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,8 +25,15 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-// Parts of this file are originally copyright (c) 2012-2016 The Cryptonote developers
+//
+// Parts of this project are originally copyright by:
+// Copyright (c) 2012-2017 The DynexCN developers
+// Copyright (c) 2012-2017 The Bytecoin developers
+// Copyright (c) 2014-2017 XDN developers
+// Copyright (c) 2014-2018 The Monero project
+// Copyright (c) 2014-2018 The Forknote developers
+// Copyright (c) 2018-2019 The TurtleCoin developers
+// Copyright (c) 2016-2022 The Karbo developers
 
 #pragma once
 
@@ -41,7 +48,7 @@
 
 namespace WalletGui {
 
-class WalletAdapter : public QObject, public CryptoNote::IWalletLegacyObserver {
+class WalletAdapter : public QObject, public DynexCN::IWalletLegacyObserver {
   Q_OBJECT
   Q_DISABLE_COPY(WalletAdapter)
 
@@ -49,19 +56,27 @@ public:
   static WalletAdapter& instance();
 
   void open(const QString& _password);
+  void createWallet();
+  void createNonDeterministic();
+  void createWithKeys(const DynexCN::AccountKeys& _keys);
+  void createWithKeys(const DynexCN::AccountKeys& _keys, const quint32 _sync_heigth);
   void close();
   bool save(bool _details, bool _cache);
   void backup(const QString& _file);
+  void autoBackup();
+  void reset();
 
   QString getAddress() const;
   quint64 getActualBalance() const;
   quint64 getPendingBalance() const;
   quint64 getTransactionCount() const;
   quint64 getTransferCount() const;
-  bool getTransaction(CryptoNote::TransactionId& _id, CryptoNote::WalletLegacyTransaction& _transaction);
-  bool getTransfer(CryptoNote::TransferId& _id, CryptoNote::WalletLegacyTransfer& _transfer);
+  bool getTransaction(DynexCN::TransactionId& _id, DynexCN::WalletLegacyTransaction& _transaction);
+  bool getTransfer(DynexCN::TransferId& _id, DynexCN::WalletLegacyTransfer& _transfer);
+  bool getAccountKeys(DynexCN::AccountKeys& _keys);
   bool isOpen() const;
-  void sendTransaction(const QVector<CryptoNote::WalletLegacyTransfer>& _transfers, quint64 _fee, const QString& _payment_id, quint64 _mixin);
+  void sendTransaction(const QVector<DynexCN::WalletLegacyTransfer>& _transfers, quint64 _fee, const QString& _payment_id, quint64 _mixin);
+
   bool changePassword(const QString& _old_pass, const QString& _new_pass);
   void setWalletFile(const QString& _path);
 
@@ -71,13 +86,18 @@ public:
   void synchronizationCompleted(std::error_code _error) Q_DECL_OVERRIDE;
   void actualBalanceUpdated(uint64_t _actual_balance) Q_DECL_OVERRIDE;
   void pendingBalanceUpdated(uint64_t _pending_balance) Q_DECL_OVERRIDE;
-  void externalTransactionCreated(CryptoNote::TransactionId _transaction_id) Q_DECL_OVERRIDE;
-  void sendTransactionCompleted(CryptoNote::TransactionId _transaction_id, std::error_code _result) Q_DECL_OVERRIDE;
-  void transactionUpdated(CryptoNote::TransactionId _transaction_id) Q_DECL_OVERRIDE;
+  void externalTransactionCreated(DynexCN::TransactionId _transaction_id) Q_DECL_OVERRIDE;
+  void sendTransactionCompleted(DynexCN::TransactionId _transaction_id, std::error_code _result) Q_DECL_OVERRIDE;
+  void transactionUpdated(DynexCN::TransactionId _transaction_id) Q_DECL_OVERRIDE;
+
+  bool isDeterministic() const;
+  bool isDeterministic(DynexCN::AccountKeys& _keys) const;
+  QString getMnemonicSeed(QString _language) const;
+  DynexCN::AccountKeys getKeysFromMnemonicSeed(QString& _seed) const;
 
 private:
   std::fstream m_file;
-  CryptoNote::IWalletLegacy* m_wallet;
+  DynexCN::IWalletLegacy* m_wallet;
   QMutex m_mutex;
   std::atomic<bool> m_isBackupInProgress;
   std::atomic<bool> m_isSynchronized;
@@ -89,7 +109,7 @@ private:
   ~WalletAdapter();
 
   void onWalletInitCompleted(int _error, const QString& _error_text);
-  void onWalletSendTransactionCompleted(CryptoNote::TransactionId _transaction_id, int _error, const QString& _error_text);
+  void onWalletSendTransactionCompleted(DynexCN::TransactionId _transaction_id, int _error, const QString& _error_text);
 
   bool importLegacyWallet(const QString &_password);
   bool save(const QString& _file, bool _details, bool _cache);
@@ -111,9 +131,9 @@ Q_SIGNALS:
   void walletSynchronizationCompletedSignal(int _error, const QString& _error_text);
   void walletActualBalanceUpdatedSignal(quint64 _actual_balance);
   void walletPendingBalanceUpdatedSignal(quint64 _pending_balance);
-  void walletTransactionCreatedSignal(CryptoNote::TransactionId _transaction_id);
-  void walletSendTransactionCompletedSignal(CryptoNote::TransactionId _transaction_id, int _error, const QString& _error_text);
-  void walletTransactionUpdatedSignal(CryptoNote::TransactionId _transaction_id);
+  void walletTransactionCreatedSignal(DynexCN::TransactionId _transaction_id);
+  void walletSendTransactionCompletedSignal(DynexCN::TransactionId _transaction_id, int _error, const QString& _error_text);
+  void walletTransactionUpdatedSignal(DynexCN::TransactionId _transaction_id);
   void walletStateChangedSignal(const QString &_state_text);
 
   void openWalletWithPasswordSignal(bool _error);

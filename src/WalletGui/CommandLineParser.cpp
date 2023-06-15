@@ -1,21 +1,21 @@
-// Copyright (c) 2021-2022, The TuringX Project
-// 
+// Copyright (c) 2022-2023, Dynex Developers
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,11 +25,18 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-// Parts of this file are originally copyright (c) 2012-2016 The Cryptonote developers
+//
+// Parts of this project are originally copyright by:
+// Copyright (c) 2012-2017 The DynexCN developers
+// Copyright (c) 2012-2017 The Bytecoin developers
+// Copyright (c) 2014-2017 XDN developers
+// Copyright (c) 2014-2018 The Monero project
+// Copyright (c) 2014-2018 The Forknote developers
+// Copyright (c) 2018-2019 The TurtleCoin developers
+// Copyright (c) 2016-2022 The Karbo developers
 
 #include <Common/Util.h>
-#include <CryptoNoteConfig.h>
+#include <DynexCNConfig.h>
 
 #include "CommandLineParser.h"
 
@@ -40,8 +47,8 @@ CommandLineParser::CommandLineParser(QObject* _parent) : QObject(_parent), m_par
   m_testnetOption("testnet", tr("Used to deploy test nets. Checkpoints and hardcoded seeds are ignored, network id is changed. "
     "Use it with –data-dir flag. The wallet must be launched with –testnet flag")),
   m_p2pBindIpOption("p2p-bind-ip", tr("Interface for p2p network protocol"), tr("ip"), "0.0.0.0"),
-  m_p2pBindPortOption("p2p-bind-port", tr("Port for p2p network protocol"), tr("port"), QString::number(CryptoNote::P2P_DEFAULT_PORT)),
-  m_p2pExternalOption("p2p-external-port", tr("xternal port for p2p network protocol (if port forwarding used with NAT)"),
+  m_p2pBindPortOption("p2p-bind-port", tr("Port for p2p network protocol"), tr("port"), QString::number(DynexCN::P2P_DEFAULT_PORT)),
+  m_p2pExternalOption("p2p-external-port", tr("External port for p2p network protocol (if port forwarding used with NAT)"),
     tr("port"), 0),
   m_allowLocalIpOption("allow-local-ip", tr("Allow local ip add to peer list, mostly in debug purposes")),
   m_addPeerOption("add-peer", tr("Manually add peer to local peerlist"), tr("peer")),
@@ -53,7 +60,7 @@ CommandLineParser::CommandLineParser(QObject* _parent) : QObject(_parent), m_par
   m_hideMyPortOption("hide-my-port", tr("Do not announce yourself as peerlist candidate")),
   m_dataDirOption("data-dir", tr("Specify data directory"), tr("directory"), QString::fromStdString(Tools::getDefaultDataDirectory())),
   m_minimized("minimized", tr("Run application in minimized mode")) {
-  m_parser.setApplicationDescription(tr("Dynex wallet"));
+//m_parser.setApplicationDescription(tr("Dynex wallet"));
   m_parser.addOption(m_testnetOption);
   m_parser.addOption(m_p2pBindIpOption);
   m_parser.addOption(m_p2pBindPortOption);
@@ -142,6 +149,18 @@ QStringList CommandLineParser::getSeedNodes() const {
 
 QString CommandLineParser::getDataDir() const {
   return m_parser.value(m_dataDirOption);
+}
+
+bool CommandLineParser::hasP2pBindIp() const {
+  return m_parser.isSet(m_p2pBindIpOption);
+}
+
+bool CommandLineParser::hasP2pBindPort() const {
+  return m_parser.isSet(m_p2pBindPortOption);
+}
+
+bool CommandLineParser::hasP2pExternalPort() const {
+  return m_parser.isSet(m_p2pExternalOption);
 }
 
 }

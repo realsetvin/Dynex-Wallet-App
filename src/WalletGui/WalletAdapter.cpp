@@ -1,21 +1,21 @@
-// Copyright (c) 2021-2022, The TuringX Project
-// 
+// Copyright (c) 2022-2023, Dynex Developers
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,10 +25,18 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-// Parts of this file are originally copyright (c) 2012-2016 The Cryptonote developers
+//
+// Parts of this project are originally copyright by:
+// Copyright (c) 2012-2017 The DynexCN developers
+// Copyright (c) 2012-2017 The Bytecoin developers
+// Copyright (c) 2014-2017 XDN developers
+// Copyright (c) 2014-2018 The Monero project
+// Copyright (c) 2014-2018 The Forknote developers
+// Copyright (c) 2018-2019 The TurtleCoin developers
+// Copyright (c) 2016-2022 The Karbo developers
 
 #include <QCoreApplication>
+#include <QMessageBox>
 #include <QDateTime>
 #include <QLocale>
 #include <QVector>
@@ -40,6 +48,21 @@
 #include "NodeAdapter.h"
 #include "Settings.h"
 #include "WalletAdapter.h"
+#include "CurrencyAdapter.h"
+#include "DynexCNConfig.h"
+#include "crypto/crypto.h"
+#include "Common/Base58.h"
+#include "DynexCNCore/DynexCNBasic.h"
+#include "Mnemonics/electrum-words.h"
+#include "gui/VerifyMnemonicSeedDialog.h"
+
+extern "C"
+{
+#include "crypto/keccak.h"
+#include "crypto/crypto-ops.h"
+}
+
+#define GENERATE_DETERMINISTIC
 
 namespace WalletGui {
 
@@ -133,12 +156,63 @@ void WalletAdapter::open(const QString& _password) {
   } else {
     Settings::instance().setEncrypted(false);
     try {
+#ifndef GENERATE_DETERMINISTIC
       m_wallet->initAndGenerate("");
+#else
+      m_wallet->initAndGenerateDeterministic("");
+      VerifyMnemonicSeedDialog dlg(nullptr);
+      dlg.exec();
+#endif
     } catch (std::system_error&) {
       delete m_wallet;
       m_wallet = nullptr;
     }
   }
+}
+
+void WalletAdapter::createWallet() {
+  Q_ASSERT(m_wallet == nullptr);
+  Settings::instance().setEncrypted(false);
+  Q_EMIT walletStateChangedSignal(tr("Creating wallet"));
+  m_wallet = NodeAdapter::instance().createWallet();
+  m_wallet->addObserver(this);
+
+  try {
+    m_wallet->initAndGenerateDeterministic("");
+    VerifyMnemonicSeedDialog dlg(nullptr);
+    dlg.exec();
+  } catch (std::system_error&) {
+    delete m_wallet;
+    m_wallet = nullptr;
+  }
+}
+
+void WalletAdapter::createNonDeterministic() {
+  m_wallet = NodeAdapter::instance().createWallet();
+  m_wallet->addObserver(this);
+  Settings::instance().setEncrypted(false);
+  try {
+    m_wallet->initAndGenerate("");
+  } catch (std::system_error&) {
+    delete m_wallet;
+    m_wallet = nullptr;
+  }
+}
+
+void WalletAdapter::createWithKeys(const DynexCN::AccountKeys& _keys) {
+  m_wallet = NodeAdapter::instance().createWallet();
+  m_wallet->addObserver(this);
+  Settings::instance().setEncrypted(false);
+  Q_EMIT walletStateChangedSignal(tr("Creating wallet"));
+  m_wallet->initWithKeys(_keys, "");
+}
+
+void WalletAdapter::createWithKeys(const DynexCN::AccountKeys& _keys, const quint32 _sync_heigth) {
+  m_wallet = NodeAdapter::instance().createWallet();
+  m_wallet->addObserver(this);
+  Settings::instance().setEncrypted(false);
+  Q_EMIT walletStateChangedSignal(tr("Creating wallet"));
+  m_wallet->initWithKeys(_keys, "", _sync_heigth);
 }
 
 bool WalletAdapter::isOpen() const {
@@ -156,13 +230,13 @@ bool WalletAdapter::importLegacyWallet(const QString &_password) {
       return false;
     }
 
-    CryptoNote::importLegacyKeys(Settings::instance().getWalletFile().toStdString(), _password.toStdString(), m_file);
+    DynexCN::importLegacyKeys(Settings::instance().getWalletFile().toStdString(), _password.toStdString(), m_file);
     closeFile();
     Settings::instance().setWalletFile(fileName);
     return true;
   } catch (std::system_error& _err) {
     closeFile();
-    if (_err.code().value() == CryptoNote::error::WRONG_PASSWORD) {
+    if (_err.code().value() == DynexCN::error::WRONG_PASSWORD) {
       Settings::instance().setEncrypted(true);
       Q_EMIT openWalletWithPasswordSignal(!_password.isEmpty());
     }
@@ -198,13 +272,14 @@ bool WalletAdapter::save(bool _details, bool _cache) {
 bool WalletAdapter::save(const QString& _file, bool _details, bool _cache) {
   Q_CHECK_PTR(m_wallet);
   if (openFile(_file, false)) {
+    Q_EMIT walletStateChangedSignal(tr("Saving data"));
     try {
       m_wallet->save(m_file, _details, _cache);
     } catch (std::system_error&) {
       closeFile();
       return false;
     }
-    Q_EMIT walletStateChangedSignal(tr("Saving data"));
+
   } else {
     return false;
   }
@@ -217,6 +292,33 @@ void WalletAdapter::backup(const QString& _file) {
     m_isBackupInProgress = true;
   }
 }
+
+void WalletAdapter::autoBackup(){
+  QString source = Settings::instance().getWalletFile();
+  source.append(QString(".backup"));
+
+  if (!source.isEmpty() && !QFile::exists(source)) {
+    if (save(source, true, false)) {
+      m_isBackupInProgress = true;
+    }
+  }
+}
+
+void WalletAdapter::reset() {
+  Q_CHECK_PTR(m_wallet);
+  save(false, false);
+  lock();
+  m_wallet->removeObserver(this);
+  m_isSynchronized = false;
+  m_newTransactionsNotificationTimer.stop();
+  m_lastWalletTransactionId = std::numeric_limits<quint64>::max();
+  Q_EMIT walletCloseCompletedSignal();
+  QCoreApplication::processEvents();
+  delete m_wallet;
+  m_wallet = nullptr;
+  unlock();
+}
+
 
 quint64 WalletAdapter::getTransactionCount() const {
   Q_CHECK_PTR(m_wallet);
@@ -238,7 +340,7 @@ quint64 WalletAdapter::getTransferCount() const {
   return 0;
 }
 
-bool WalletAdapter::getTransaction(CryptoNote::TransactionId& _id, CryptoNote::WalletLegacyTransaction& _transaction) {
+bool WalletAdapter::getTransaction(DynexCN::TransactionId& _id, DynexCN::WalletLegacyTransaction& _transaction) {
   Q_CHECK_PTR(m_wallet);
   try {
     return m_wallet->getTransaction(_id, _transaction);
@@ -248,7 +350,7 @@ bool WalletAdapter::getTransaction(CryptoNote::TransactionId& _id, CryptoNote::W
   return false;
 }
 
-bool WalletAdapter::getTransfer(CryptoNote::TransferId& _id, CryptoNote::WalletLegacyTransfer& _transfer) {
+bool WalletAdapter::getTransfer(DynexCN::TransferId& _id, DynexCN::WalletLegacyTransfer& _transfer) {
   Q_CHECK_PTR(m_wallet);
   try {
     return m_wallet->getTransfer(_id, _transfer);
@@ -258,11 +360,22 @@ bool WalletAdapter::getTransfer(CryptoNote::TransferId& _id, CryptoNote::WalletL
   return false;
 }
 
-void WalletAdapter::sendTransaction(const QVector<CryptoNote::WalletLegacyTransfer>& _transfers, quint64 _fee, const QString& _paymentId, quint64 _mixin) {
+bool WalletAdapter::getAccountKeys(DynexCN::AccountKeys& _keys) {
+  Q_CHECK_PTR(m_wallet);
+  try {
+    m_wallet->getAccountKeys(_keys);
+    return true;
+  } catch (std::system_error&) {
+  }
+
+  return false;
+}
+
+void WalletAdapter::sendTransaction(const QVector<DynexCN::WalletLegacyTransfer>& _transfers, quint64 _fee, const QString& _paymentId, quint64 _mixin) {
   Q_CHECK_PTR(m_wallet);
   try {
     lock();
-    std::vector<CryptoNote::WalletLegacyTransfer> vec(_transfers.begin(), _transfers.end());
+    std::vector<DynexCN::WalletLegacyTransfer> vec(_transfers.begin(), _transfers.end());
     m_wallet->sendTransaction(vec, _fee, NodeAdapter::instance().convertPaymentId(_paymentId), _mixin, 0);
     Q_EMIT walletStateChangedSignal(tr("Sending transaction"));
   } catch (std::system_error&) {
@@ -273,7 +386,7 @@ void WalletAdapter::sendTransaction(const QVector<CryptoNote::WalletLegacyTransf
 bool WalletAdapter::changePassword(const QString& _oldPassword, const QString& _newPassword) {
   Q_CHECK_PTR(m_wallet);
   try {
-    if (m_wallet->changePassword(_oldPassword.toStdString(), _newPassword.toStdString()).value() == CryptoNote::error::WRONG_PASSWORD) {
+    if (m_wallet->changePassword(_oldPassword.toStdString(), _newPassword.toStdString()).value() == DynexCN::error::WRONG_PASSWORD) {
       return false;
     }
   } catch (std::system_error&) {
@@ -312,7 +425,7 @@ void WalletAdapter::onWalletInitCompleted(int _error, const QString& _errorText)
 
     break;
   }
-  case CryptoNote::error::WRONG_PASSWORD:
+  case DynexCN::error::WRONG_PASSWORD:
     Q_EMIT openWalletWithPasswordSignal(Settings::instance().isEncrypted());
     Settings::instance().setEncrypted(true);
     delete m_wallet;
@@ -366,7 +479,7 @@ void WalletAdapter::pendingBalanceUpdated(uint64_t _pending_balance) {
   Q_EMIT walletPendingBalanceUpdatedSignal(_pending_balance);
 }
 
-void WalletAdapter::externalTransactionCreated(CryptoNote::TransactionId _transactionId) {
+void WalletAdapter::externalTransactionCreated(DynexCN::TransactionId _transactionId) {
   if (!m_isSynchronized) {
     m_lastWalletTransactionId = _transactionId;
   } else {
@@ -374,18 +487,18 @@ void WalletAdapter::externalTransactionCreated(CryptoNote::TransactionId _transa
   }
 }
 
-void WalletAdapter::sendTransactionCompleted(CryptoNote::TransactionId _transaction_id, std::error_code _error) {
+void WalletAdapter::sendTransactionCompleted(DynexCN::TransactionId _transaction_id, std::error_code _error) {
   unlock();
   Q_EMIT walletSendTransactionCompletedSignal(_transaction_id, _error.value(), QString::fromStdString(_error.message()));
   Q_EMIT updateBlockStatusTextWithDelaySignal();
 }
 
-void WalletAdapter::onWalletSendTransactionCompleted(CryptoNote::TransactionId _transactionId, int _error, const QString& _errorText) {
+void WalletAdapter::onWalletSendTransactionCompleted(DynexCN::TransactionId _transactionId, int _error, const QString& _errorText) {
   if (_error) {
     return;
   }
 
-  CryptoNote::WalletLegacyTransaction transaction;
+  DynexCN::WalletLegacyTransaction transaction;
   if (!this->getTransaction(_transactionId, transaction)) {
     return;
   }
@@ -399,7 +512,7 @@ void WalletAdapter::onWalletSendTransactionCompleted(CryptoNote::TransactionId _
   save(true, true);
 }
 
-void WalletAdapter::transactionUpdated(CryptoNote::TransactionId _transactionId) {
+void WalletAdapter::transactionUpdated(DynexCN::TransactionId _transactionId) {
   Q_EMIT walletTransactionUpdatedSignal(_transactionId);
 }
 
@@ -460,6 +573,50 @@ void WalletAdapter::updateBlockStatusText() {
 void WalletAdapter::updateBlockStatusTextWithDelay() {
   m_statusTimer.stop();
   m_statusTimer.start(5000);
+}
+
+bool WalletAdapter::isDeterministic() const {
+  Crypto::SecretKey second;
+  DynexCN::AccountKeys keys;
+  WalletAdapter::instance().getAccountKeys(keys);
+  keccak((uint8_t *)&keys.spendSecretKey, sizeof(Crypto::SecretKey), (uint8_t *)&second, sizeof(Crypto::SecretKey));
+  sc_reduce32((uint8_t *)&second);
+  bool keys_deterministic = memcmp(second.data,keys.viewSecretKey.data, sizeof(Crypto::SecretKey)) == 0;
+  return keys_deterministic;
+}
+
+bool WalletAdapter::isDeterministic(DynexCN::AccountKeys& _keys) const {
+  Crypto::SecretKey second;
+  WalletAdapter::instance().getAccountKeys(_keys);
+  keccak((uint8_t *)&_keys.spendSecretKey, sizeof(Crypto::SecretKey), (uint8_t *)&second, sizeof(Crypto::SecretKey));
+  sc_reduce32((uint8_t *)&second);
+  bool keys_deterministic = memcmp(second.data,_keys.viewSecretKey.data, sizeof(Crypto::SecretKey)) == 0;
+  return keys_deterministic;
+}
+
+QString WalletAdapter::getMnemonicSeed(QString _language) const {
+  std::string electrum_words;
+  if(!WalletAdapter::instance().isDeterministic()) {
+    return "Wallet is non-deterministic and has no seed";
+  }
+  DynexCN::AccountKeys keys;
+  WalletAdapter::instance().getAccountKeys(keys);
+  std::string seed_language = _language.toUtf8().constData();
+  Crypto::ElectrumWords::bytes_to_words(keys.spendSecretKey, electrum_words, seed_language);
+  return QString::fromStdString(electrum_words);
+}
+
+DynexCN::AccountKeys WalletAdapter::getKeysFromMnemonicSeed(QString& _seed) const {
+  DynexCN::AccountKeys keys;
+  std::string m_seed_language;
+  if(!Crypto::ElectrumWords::words_to_bytes(_seed.toStdString(), keys.spendSecretKey, m_seed_language)) {
+    QMessageBox::critical(nullptr, tr("Mnemonic seed is not correct"), tr("There must be an error in mnemonic seed. Make sure you entered it correctly."), QMessageBox::Ok);
+  }
+  Crypto::secret_key_to_public_key(keys.spendSecretKey,keys.address.spendPublicKey);
+  Crypto::SecretKey second;
+  keccak((uint8_t *)&keys.spendSecretKey, sizeof(Crypto::SecretKey), (uint8_t *)&second, sizeof(Crypto::SecretKey));
+  Crypto::generate_deterministic_keys(keys.address.viewPublicKey,keys.viewSecretKey,second);
+  return keys;
 }
 
 }

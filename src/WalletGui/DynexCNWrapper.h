@@ -37,56 +37,53 @@
 
 #pragma once
 
-#include <QCommandLineParser>
-#include <QObject>
+#include <functional>
+#include <memory>
+#include <string>
+#include <system_error>
+
+namespace DynexCN {
+
+class INode;
+class IWalletLegacy;
+class Currency;
+class CoreConfig;
+class NetNodeConfig;
+
+}
+
+namespace Logging {
+  class LoggerManager;
+}
 
 namespace WalletGui {
 
-class CommandLineParser : public QObject {
-  Q_OBJECT
-
+class Node {
 public:
-  CommandLineParser(QObject* _parent);
-  ~CommandLineParser();
+  virtual ~Node() = 0;
+  virtual void init(const std::function<void(std::error_code)>& callback) = 0;
+  virtual void deinit() = 0;
+  
+  virtual std::string convertPaymentId(const std::string& paymentIdString) = 0;
+  virtual std::string extractPaymentId(const std::string& extra) = 0;
+  virtual uint64_t getLastKnownBlockHeight() const = 0;
+  virtual uint64_t getLastLocalBlockHeight() const = 0;
+  virtual uint64_t getLastLocalBlockTimestamp() const = 0;
+  virtual uint64_t getPeerCount() const = 0;
+  virtual uint64_t getMinimalFee() const = 0;
 
-  bool process(const QStringList& _argv);
-
-  bool hasHelpOption() const;
-  bool hasVersionOption() const;
-  bool hasTestnetOption() const;
-  bool hasMinimizedOption() const;
-  bool hasAllowLocalIpOption() const;
-  bool hasHideMyPortOption() const;
-  QString getErrorText() const;
-  QString getHelpText() const;
-  QString getP2pBindIp() const;
-  quint16 getP2pBindPort() const;
-  quint16 getP2pExternalPort() const;
-  QStringList getPeers() const;
-  QStringList getPiorityNodes() const;
-  QStringList getExclusiveNodes() const;
-  QStringList getSeedNodes() const;
-  QString getDataDir() const;
-  bool hasP2pBindIp() const;
-  bool hasP2pBindPort() const;
-  bool hasP2pExternalPort() const;
-
-private:
-  QCommandLineParser m_parser;
-  QCommandLineOption m_helpOption;
-  QCommandLineOption m_versionOption;
-  QCommandLineOption m_testnetOption;
-  QCommandLineOption m_p2pBindIpOption;
-  QCommandLineOption m_p2pBindPortOption;
-  QCommandLineOption m_p2pExternalOption;
-  QCommandLineOption m_allowLocalIpOption;
-  QCommandLineOption m_addPeerOption;
-  QCommandLineOption m_addPriorityNodeOption;
-  QCommandLineOption m_addExclusiveNodeOption;
-  QCommandLineOption m_seedNodeOption;
-  QCommandLineOption m_hideMyPortOption;
-  QCommandLineOption m_dataDirOption;
-  QCommandLineOption m_minimized;
+  virtual DynexCN::IWalletLegacy* createWallet() = 0;
 };
+
+class INodeCallback {
+public:
+  virtual void peerCountUpdated(Node& node, size_t count) = 0;
+  virtual void localBlockchainUpdated(Node& node, uint64_t height) = 0;
+  virtual void lastKnownBlockHeightUpdated(Node& node, uint64_t height) = 0;
+};
+
+Node* createRpcNode(const DynexCN::Currency& currency, INodeCallback& callback, const std::string& nodeHost, unsigned short nodePort);
+Node* createInprocessNode(const DynexCN::Currency& currency, Logging::LoggerManager& logManager,
+  const DynexCN::CoreConfig& coreConfig, const DynexCN::NetNodeConfig& netNodeConfig, INodeCallback& callback);
 
 }

@@ -1,21 +1,21 @@
-// Copyright (c) 2021-2022, The TuringX Project
-// 
+// Copyright (c) 2022-2023, Dynex Developers
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,8 +25,15 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-// Parts of this file are originally copyright (c) 2012-2016 The Cryptonote developers
+//
+// Parts of this project are originally copyright by:
+// Copyright (c) 2012-2017 The DynexCN developers
+// Copyright (c) 2012-2017 The Bytecoin developers
+// Copyright (c) 2014-2017 XDN developers
+// Copyright (c) 2014-2018 The Monero project
+// Copyright (c) 2014-2018 The Forknote developers
+// Copyright (c) 2018-2019 The TurtleCoin developers
+// Copyright (c) 2016-2022 The Karbo developers
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -34,7 +41,7 @@
 #include <QTimer>
 #include <QUrl>
 
-#include <CryptoNoteCore/CoreConfig.h>
+#include <DynexCNCore/CoreConfig.h>
 #include <P2p/NetNodeConfig.h>
 #include <Wallet/WalletErrors.h>
 
@@ -43,9 +50,17 @@
 #include "NodeAdapter.h"
 #include "Settings.h"
 
+#include <curl/curl.h>
+
 namespace WalletGui {
 
 namespace {
+
+// curl return value function
+static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp) {
+  ((std::string*)userp)->append((char*)contents, size * nmemb);
+  return size * nmemb;
+}
 
 std::vector<std::string> convertStringListToVector(const QStringList& list) {
   std::vector<std::string> result;
@@ -74,8 +89,8 @@ public:
   ~InProcessNodeInitializer() {
   }
 
-  void start(Node** _node, const CryptoNote::Currency* currency,  INodeCallback* _callback, Logging::LoggerManager* _loggerManager,
-    const CryptoNote::CoreConfig& _coreConfig, const CryptoNote::NetNodeConfig& _netNodeConfig) {
+  void start(Node** _node, const DynexCN::Currency* currency,  INodeCallback* _callback, Logging::LoggerManager* _loggerManager,
+    const DynexCN::CoreConfig& _coreConfig, const DynexCN::NetNodeConfig& _netNodeConfig) {
     (*_node) = createInprocessNode(*currency, *_loggerManager, _coreConfig, _netNodeConfig, *_callback);
     try {
       (*_node)->init([this](std::error_code _err) {
@@ -89,7 +104,7 @@ public:
           QCoreApplication::processEvents();
         });
     } catch (std::runtime_error& err) {
-      Q_EMIT nodeInitFailedSignal(CryptoNote::error::INTERNAL_WALLET_ERROR);
+      Q_EMIT nodeInitFailedSignal(DynexCN::error::INTERNAL_WALLET_ERROR);
       QCoreApplication::processEvents();
       return;
     }
@@ -113,8 +128,8 @@ NodeAdapter& NodeAdapter::instance() {
 NodeAdapter::NodeAdapter() : QObject(), m_node(nullptr), m_nodeInitializerThread(), m_nodeInitializer(new InProcessNodeInitializer) {
   m_nodeInitializer->moveToThread(&m_nodeInitializerThread);
 
-  qRegisterMetaType<CryptoNote::CoreConfig>("CryptoNote::CoreConfig");
-  qRegisterMetaType<CryptoNote::NetNodeConfig>("CryptoNote::NetNodeConfig");
+  qRegisterMetaType<DynexCN::CoreConfig>("DynexCN::CoreConfig");
+  qRegisterMetaType<DynexCN::NetNodeConfig>("DynexCN::NetNodeConfig");
 
   connect(m_nodeInitializer, &InProcessNodeInitializer::nodeInitCompletedSignal, this, &NodeAdapter::nodeInitCompletedSignal, Qt::QueuedConnection);
   connect(this, &NodeAdapter::initNodeSignal, m_nodeInitializer, &InProcessNodeInitializer::start, Qt::QueuedConnection);
@@ -143,16 +158,74 @@ QString NodeAdapter::extractPaymentId(const std::string& _extra) const {
   return QString::fromStdString(m_node->extractPaymentId(_extra));
 }
 
-CryptoNote::IWalletLegacy* NodeAdapter::createWallet() const {
+DynexCN::IWalletLegacy* NodeAdapter::createWallet() const {
   Q_CHECK_PTR(m_node);
   return m_node->createWallet();
 }
 
 bool NodeAdapter::init() {
   Q_ASSERT(m_node == nullptr);
-  QUrl localNodeUrl = QUrl::fromUserInput(QString("127.0.0.1:%1").arg(CryptoNote::RPC_DEFAULT_PORT));
 
-  m_node = createRpcNode(CurrencyAdapter::instance().getCurrency(), *this, localNodeUrl.host().toStdString(), localNodeUrl.port());
+  QString connection = Settings::instance().getConnection();
+
+  if (connection.compare("embedded") == 0) {
+
+    LoggerAdapter::instance().log("Starting embedded node...");
+    m_node = nullptr;
+    return initInProcessNode();
+
+  } else if (connection.compare("local") == 0) {
+
+    LoggerAdapter::instance().log("Connecting to local node..."); 
+    QUrl localNodeUrl = QUrl::fromUserInput(QString("127.0.0.1:%1").arg(Settings::instance().getLocalDaemonPort()));
+    return initRPCNode(localNodeUrl);
+
+  } else if(connection.compare("remote") == 0) {
+
+    LoggerAdapter::instance().log("Connecting to remote node...");
+    QUrl remoteNodeUrl = QUrl::fromUserInput(Settings::instance().getRemoteNode());
+    return initRPCNode(remoteNodeUrl);
+
+  } else {
+	
+    bool try_local = true;
+
+    CURL *curl = curl_easy_init();
+    if (curl) {
+	  std::string readBuffer;
+      long http_code = 0;
+      QString url = QString("http://127.0.0.1:%1/getinfo").arg(Settings::instance().getLocalDaemonPort());
+
+      curl_easy_setopt(curl, CURLOPT_URL, qPrintable(url));
+      curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 1);
+      curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1);
+      curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+      curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+      CURLcode res = curl_easy_perform(curl);
+
+      if (res != CURLE_OK || curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code) != CURLE_OK || http_code != 200) {
+        try_local = false;
+      }
+      curl_easy_cleanup(curl);
+   	}
+
+    if (try_local) {
+      QUrl localNodeUrl = QUrl::fromUserInput(QString("127.0.0.1:%1").arg(Settings::instance().getLocalDaemonPort()));
+      LoggerAdapter::instance().log("Connecting to local node...");
+      if (initRPCNode(localNodeUrl)) return true;
+    }
+
+    LoggerAdapter::instance().log("Starting embedded node...");
+    return initInProcessNode();
+  }
+
+  return false;
+}
+
+bool NodeAdapter::initRPCNode(QUrl nodeUrl) {
+  Q_ASSERT(m_node == nullptr);
+
+  m_node = createRpcNode(CurrencyAdapter::instance().getCurrency(), *this, nodeUrl.host().toStdString(), nodeUrl.port(DynexCN::RPC_DEFAULT_PORT));
 
   QTimer initTimer;
   initTimer.setInterval(3000);
@@ -174,7 +247,7 @@ bool NodeAdapter::init() {
 
   delete m_node;
   m_node = nullptr;
-  return initInProcessNode();
+  return false;
 }
 
 quint64 NodeAdapter::getLastKnownBlockHeight() const {
@@ -190,6 +263,11 @@ quint64 NodeAdapter::getLastLocalBlockHeight() const {
 QDateTime NodeAdapter::getLastLocalBlockTimestamp() const {
   Q_CHECK_PTR(m_node);
   return QDateTime::fromTime_t(m_node->getLastLocalBlockTimestamp(), Qt::UTC);
+}
+
+quint64 NodeAdapter::getMinimalFee() const {
+  Q_CHECK_PTR(m_node);
+  return m_node->getMinimalFee();
 }
 
 void NodeAdapter::peerCountUpdated(Node& _node, size_t _count) {
@@ -210,8 +288,8 @@ void NodeAdapter::lastKnownBlockHeightUpdated(Node& _node, uint64_t _height) {
 bool NodeAdapter::initInProcessNode() {
   Q_ASSERT(m_node == nullptr);
   m_nodeInitializerThread.start();
-  CryptoNote::CoreConfig coreConfig = makeCoreConfig();
-  CryptoNote::NetNodeConfig netNodeConfig = makeNetNodeConfig();
+  DynexCN::CoreConfig coreConfig = makeCoreConfig();
+  DynexCN::NetNodeConfig netNodeConfig = makeNetNodeConfig();
   Q_EMIT initNodeSignal(&m_node, &CurrencyAdapter::instance().getCurrency(), this, &LoggerAdapter::instance().getLoggerManager(), coreConfig, netNodeConfig);
   QEventLoop waitLoop;
   connect(m_nodeInitializer, &InProcessNodeInitializer::nodeInitCompletedSignal, &waitLoop, &QEventLoop::quit);
@@ -241,8 +319,8 @@ void NodeAdapter::deinit() {
   }
 }
 
-CryptoNote::CoreConfig NodeAdapter::makeCoreConfig() const {
-  CryptoNote::CoreConfig config;
+DynexCN::CoreConfig NodeAdapter::makeCoreConfig() const {
+  DynexCN::CoreConfig config;
   boost::program_options::variables_map options;
   boost::any dataDir = Settings::instance().getDataDir().absolutePath().toStdString();
   options.insert(std::make_pair("data-dir", boost::program_options::variable_value(dataDir, false)));
@@ -250,8 +328,8 @@ CryptoNote::CoreConfig NodeAdapter::makeCoreConfig() const {
   return config;
 }
 
-CryptoNote::NetNodeConfig NodeAdapter::makeNetNodeConfig() const {
-  CryptoNote::NetNodeConfig config;
+DynexCN::NetNodeConfig NodeAdapter::makeNetNodeConfig() const {
+  DynexCN::NetNodeConfig config;
   boost::program_options::variables_map options;
   boost::any p2pBindIp = Settings::instance().getP2pBindIp().toStdString();
   boost::any p2pBindPort = static_cast<uint16_t>(Settings::instance().getP2pBindPort());
@@ -285,7 +363,6 @@ CryptoNote::NetNodeConfig NodeAdapter::makeNetNodeConfig() const {
 
   options.insert(std::make_pair("hide-my-port", boost::program_options::variable_value(hideMyPort, false)));
   options.insert(std::make_pair("data-dir", boost::program_options::variable_value(dataDir, false)));
-  //int size = options.size();
   config.init(options);
   config.setTestnet(Settings::instance().isTestnet());
   return config;
