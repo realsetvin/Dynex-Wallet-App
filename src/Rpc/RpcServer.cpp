@@ -27,7 +27,7 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 // Parts of this project are originally copyright by:
-// Copyright (c) 2012-2016, The CryptoNote developers, The Bytecoin developers
+// Copyright (c) 2012-2016, The DynexCN developers, The Bytecoin developers
 // Copyright (c) 2014-2018, The Monero project
 // Copyright (c) 2014-2018, The Forknote developers
 // Copyright (c) 2018, The TurtleCoin developers
@@ -41,18 +41,18 @@
 #include <future>
 #include <unordered_map>
 
-// CryptoNote
+// DynexCN
 #include "BlockchainExplorerData.h"
 #include "Common/StringTools.h"
 #include "Common/Base58.h"
-#include "CryptoNoteCore/TransactionUtils.h"
-#include "CryptoNoteCore/CryptoNoteTools.h"
-#include "CryptoNoteCore/CryptoNoteFormatUtils.h"
-#include "CryptoNoteCore/Core.h"
-#include "CryptoNoteCore/IBlock.h"
-#include "CryptoNoteCore/Miner.h"
-#include "CryptoNoteCore/TransactionExtra.h"
-#include "CryptoNoteProtocol/ICryptoNoteProtocolQuery.h"
+#include "DynexCNCore/TransactionUtils.h"
+#include "DynexCNCore/DynexCNTools.h"
+#include "DynexCNCore/DynexCNFormatUtils.h"
+#include "DynexCNCore/Core.h"
+#include "DynexCNCore/IBlock.h"
+#include "DynexCNCore/Miner.h"
+#include "DynexCNCore/TransactionExtra.h"
+#include "DynexCNProtocol/IDynexCNProtocolQuery.h"
 
 #include "P2p/NetNode.h"
 
@@ -67,7 +67,7 @@ using namespace Common;
 
 static const Crypto::SecretKey I = { { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } };
 
-namespace CryptoNote {
+namespace DynexCN {
 
 namespace {
 
@@ -154,7 +154,7 @@ std::unordered_map<std::string, RpcServer::RpcHandler<RpcServer::HandlerFunction
   { "/json_rpc", { std::bind(&RpcServer::processJsonRpcRequest, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), true } }
 };
 
-RpcServer::RpcServer(System::Dispatcher& dispatcher, Logging::ILogger& log, core& c, NodeServer& p2p, ICryptoNoteProtocolQuery& protocolQuery) :
+RpcServer::RpcServer(System::Dispatcher& dispatcher, Logging::ILogger& log, core& c, NodeServer& p2p, IDynexCNProtocolQuery& protocolQuery) :
   HttpServer(dispatcher, log), logger(log, "RpcServer"), m_core(c), m_p2p(p2p), m_protocolQuery(protocolQuery), blockchainExplorerDataBuilder(c, protocolQuery) {
 }
 
@@ -333,12 +333,12 @@ bool RpcServer::masternode_check_incoming_tx(const BinaryArray& tx_blob) {
 		return true;
 	}
 
-	CryptoNote::TransactionPrefix transaction = *static_cast<const TransactionPrefix*>(&tx);
+	DynexCN::TransactionPrefix transaction = *static_cast<const TransactionPrefix*>(&tx);
 
 	/*
 	std::vector<uint32_t> out;
 	uint64_t amount;
-	if (!CryptoNote::findOutputsToAccount(transaction, m_fee_acc, m_view_key, out, amount)) {
+	if (!DynexCN::findOutputsToAccount(transaction, m_fee_acc, m_view_key, out, amount)) {
 		logger(INFO) << "Could not find outputs to masternode fee address";
 		return false;
 	}
@@ -469,7 +469,7 @@ bool RpcServer::on_get_random_outs(const COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOU
 
 bool RpcServer::onGetPoolChanges(const COMMAND_RPC_GET_POOL_CHANGES::request& req, COMMAND_RPC_GET_POOL_CHANGES::response& rsp) {
   rsp.status = CORE_RPC_STATUS_OK;
-  std::vector<CryptoNote::Transaction> addedTransactions;
+  std::vector<DynexCN::Transaction> addedTransactions;
   rsp.isTailBlockActual = m_core.getPoolChanges(req.tailBlockId, req.knownTxsIds, addedTransactions, rsp.deletedTxsIds);
   for (auto& tx : addedTransactions) {
     BinaryArray txBlob;
@@ -978,7 +978,7 @@ bool RpcServer::f_on_block_json(const F_COMMAND_RPC_GET_BLOCK_DETAILS::request& 
   uint64_t maxReward = 0;
   uint64_t currentReward = 0;
   int64_t emissionChange = 0;
-  size_t blockGrantedFullRewardZone =  CryptoNote::parameters::CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE;
+  size_t blockGrantedFullRewardZone =  DynexCN::parameters::CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE;
   res.block.effectiveSizeMedian = std::max(res.block.sizeMedian, blockGrantedFullRewardZone);
 
   if (!m_core.getBlockReward(res.block.height, res.block.major_version, res.block.sizeMedian, 0, prevBlockGeneratedCoins, 0, maxReward, emissionChange)) {
@@ -1095,7 +1095,7 @@ bool RpcServer::f_on_transaction_json(const F_COMMAND_RPC_GET_TRANSACTION_DETAIL
   res.txDetails.mixin = mixin;
 
   Crypto::Hash paymentId;
-  if (CryptoNote::getPaymentIdFromTxExtra(res.tx.extra, paymentId)) {
+  if (DynexCN::getPaymentIdFromTxExtra(res.tx.extra, paymentId)) {
     res.txDetails.paymentId = Common::podToHex(paymentId);
   } else {
     res.txDetails.paymentId = "";
@@ -1103,17 +1103,17 @@ bool RpcServer::f_on_transaction_json(const F_COMMAND_RPC_GET_TRANSACTION_DETAIL
 
   res.txDetails.extra.raw = res.tx.extra;
 
-  std::vector<CryptoNote::TransactionExtraField> txExtraFields;
+  std::vector<DynexCN::TransactionExtraField> txExtraFields;
   parseTransactionExtra(res.tx.extra, txExtraFields);
-  for (const CryptoNote::TransactionExtraField& field : txExtraFields) {
-    if (typeid(CryptoNote::TransactionExtraPadding) == field.type()) {
-      res.txDetails.extra.padding.push_back(std::move(boost::get<CryptoNote::TransactionExtraPadding>(field).size));
+  for (const DynexCN::TransactionExtraField& field : txExtraFields) {
+    if (typeid(DynexCN::TransactionExtraPadding) == field.type()) {
+      res.txDetails.extra.padding.push_back(std::move(boost::get<DynexCN::TransactionExtraPadding>(field).size));
     }
-    else if (typeid(CryptoNote::TransactionExtraPublicKey) == field.type()) {
-      res.txDetails.extra.publicKey = CryptoNote::getTransactionPublicKeyFromExtra(res.tx.extra);
+    else if (typeid(DynexCN::TransactionExtraPublicKey) == field.type()) {
+      res.txDetails.extra.publicKey = DynexCN::getTransactionPublicKeyFromExtra(res.tx.extra);
     }
-    else if (typeid(CryptoNote::TransactionExtraNonce) == field.type()) {
-      res.txDetails.extra.nonce.push_back(Common::toHex(boost::get<CryptoNote::TransactionExtraNonce>(field).nonce.data(), boost::get<CryptoNote::TransactionExtraNonce>(field).nonce.size()));
+    else if (typeid(DynexCN::TransactionExtraNonce) == field.type()) {
+      res.txDetails.extra.nonce.push_back(Common::toHex(boost::get<DynexCN::TransactionExtraNonce>(field).nonce.data(), boost::get<DynexCN::TransactionExtraNonce>(field).nonce.size()));
     }
   }
 
@@ -1143,7 +1143,7 @@ bool RpcServer::f_on_pool_json(const F_COMMAND_RPC_GET_POOL::request& req, F_COM
 /* Deprecated */
 bool RpcServer::f_on_mempool_json(const COMMAND_RPC_GET_MEMPOOL::request& req, COMMAND_RPC_GET_MEMPOOL::response& res) {
   auto pool = m_core.getMemoryPool();
-  for (const CryptoNote::tx_memory_pool::TransactionDetails &txd : pool) {
+  for (const DynexCN::tx_memory_pool::TransactionDetails &txd : pool) {
     f_mempool_transaction_response mempool_transaction;
     uint64_t amount_out = getOutputAmount(txd.tx);
 
@@ -1165,7 +1165,7 @@ bool RpcServer::f_on_mempool_json(const COMMAND_RPC_GET_MEMPOOL::request& req, C
 
 bool RpcServer::on_get_transactions_pool(const COMMAND_RPC_GET_TRANSACTIONS_POOL::request& req, COMMAND_RPC_GET_TRANSACTIONS_POOL::response& res) {
   auto pool = m_core.getMemoryPool();
-  for (const CryptoNote::tx_memory_pool::TransactionDetails &txd : pool) {
+  for (const DynexCN::tx_memory_pool::TransactionDetails &txd : pool) {
     transaction_pool_response mempool_transaction;
     mempool_transaction.hash = Common::podToHex(txd.id);
     mempool_transaction.fee = txd.fee;
@@ -1288,7 +1288,7 @@ bool RpcServer::on_getblocktemplate(const COMMAND_RPC_GETBLOCKTEMPLATE::request&
   }
 
   Block b = boost::value_initialized<Block>();
-  CryptoNote::BinaryArray blob_reserve;
+  DynexCN::BinaryArray blob_reserve;
   blob_reserve.resize(req.reserve_size, 0);
   if (!m_core.get_block_template(b, acc, res.difficulty, res.height, blob_reserve)) {
     logger(ERROR) << "Failed to create block template";
@@ -1296,7 +1296,7 @@ bool RpcServer::on_getblocktemplate(const COMMAND_RPC_GETBLOCKTEMPLATE::request&
   }
 
   BinaryArray block_blob = toBinaryArray(b);
-  PublicKey tx_pub_key = CryptoNote::getTransactionPublicKeyFromExtra(b.baseTransaction.extra);
+  PublicKey tx_pub_key = DynexCN::getTransactionPublicKeyFromExtra(b.baseTransaction.extra);
   if (tx_pub_key == NULL_PUBLIC_KEY) {
     logger(ERROR) << "Failed to find tx pub key in coinbase extra";
     throw JsonRpc::JsonRpcError{ CORE_RPC_ERROR_CODE_INTERNAL_ERROR, "Internal error: failed to find tx pub key in coinbase extra" };
@@ -1458,7 +1458,7 @@ bool RpcServer::on_check_tx_key(const K_COMMAND_RPC_CHECK_TX_KEY::request& req, 
 		throw JsonRpc::JsonRpcError{ CORE_RPC_ERROR_CODE_WRONG_PARAM, "Failed to parse txid" };
 	}
 	// parse address
-	CryptoNote::AccountPublicAddress address;
+	DynexCN::AccountPublicAddress address;
 	if (!m_core.currency().parseAccountAddressString(req.address, address)) {
 		throw JsonRpc::JsonRpcError{ CORE_RPC_ERROR_CODE_WRONG_PARAM, "Failed to parse address " + req.address + '.' };
 	}
@@ -1486,7 +1486,7 @@ bool RpcServer::on_check_tx_key(const K_COMMAND_RPC_CHECK_TX_KEY::request& req, 
 			CORE_RPC_ERROR_CODE_WRONG_PARAM,
 			"Couldn't find transaction with hash: " + req.txid + '.' };
 	}
-	CryptoNote::TransactionPrefix transaction = *static_cast<const TransactionPrefix*>(&tx);
+	DynexCN::TransactionPrefix transaction = *static_cast<const TransactionPrefix*>(&tx);
 
 	// obtain key derivation
 	Crypto::KeyDerivation derivation;
@@ -1530,7 +1530,7 @@ bool RpcServer::on_check_tx_with_view_key(const K_COMMAND_RPC_CHECK_TX_WITH_PRIV
 		throw JsonRpc::JsonRpcError{ CORE_RPC_ERROR_CODE_WRONG_PARAM, "Failed to parse txid" };
 	}
 	// parse address
-	CryptoNote::AccountPublicAddress address;
+	DynexCN::AccountPublicAddress address;
 	if (!m_core.currency().parseAccountAddressString(req.address, address)) {
 		throw JsonRpc::JsonRpcError{ CORE_RPC_ERROR_CODE_WRONG_PARAM, "Failed to parse address " + req.address + '.' };
 	}
@@ -1558,7 +1558,7 @@ bool RpcServer::on_check_tx_with_view_key(const K_COMMAND_RPC_CHECK_TX_WITH_PRIV
 			CORE_RPC_ERROR_CODE_WRONG_PARAM,
 			"Couldn't find transaction with hash: " + req.txid + '.' };
 	}
-	CryptoNote::TransactionPrefix transaction = *static_cast<const TransactionPrefix*>(&tx);
+	DynexCN::TransactionPrefix transaction = *static_cast<const TransactionPrefix*>(&tx);
 	
 	// get tx pub key
 	Crypto::PublicKey txPubKey = getTransactionPublicKeyFromExtra(transaction.extra);
@@ -1612,7 +1612,7 @@ bool RpcServer::on_check_tx_proof(const K_COMMAND_RPC_CHECK_TX_PROOF::request& r
 		throw JsonRpc::JsonRpcError{ CORE_RPC_ERROR_CODE_WRONG_PARAM, "Failed to parse txid" };
 	}
 	// parse address
-	CryptoNote::AccountPublicAddress address;
+	DynexCN::AccountPublicAddress address;
 	if (!m_core.currency().parseAccountAddressString(req.dest_address, address)) {
 		throw JsonRpc::JsonRpcError{ CORE_RPC_ERROR_CODE_WRONG_PARAM, "Failed to parse address " + req.dest_address + '.' };
 	}
@@ -1657,7 +1657,7 @@ bool RpcServer::on_check_tx_proof(const K_COMMAND_RPC_CHECK_TX_PROOF::request& r
 			CORE_RPC_ERROR_CODE_WRONG_PARAM,
 			"transaction wasn't found. Hash = " + req.tx_id + '.' };
 	}
-	CryptoNote::TransactionPrefix transaction = *static_cast<const TransactionPrefix*>(&tx);
+	DynexCN::TransactionPrefix transaction = *static_cast<const TransactionPrefix*>(&tx);
 
 	Crypto::PublicKey R = getTransactionPublicKeyFromExtra(transaction.extra);
 	if (R == NULL_PUBLIC_KEY)
@@ -1718,7 +1718,7 @@ bool RpcServer::on_check_tx_proof(const K_COMMAND_RPC_CHECK_TX_PROOF::request& r
 
 bool RpcServer::on_check_reserve_proof(const K_COMMAND_RPC_CHECK_RESERVE_PROOF::request& req, K_COMMAND_RPC_CHECK_RESERVE_PROOF::response& res) {
 	// parse address
-	CryptoNote::AccountPublicAddress address;
+	DynexCN::AccountPublicAddress address;
 	if (!m_core.currency().parseAccountAddressString(req.address, address)) {
 		throw JsonRpc::JsonRpcError{ CORE_RPC_ERROR_CODE_WRONG_PARAM, "Failed to parse address " + req.address + '.' };
 	}
@@ -1748,7 +1748,7 @@ bool RpcServer::on_check_reserve_proof(const K_COMMAND_RPC_CHECK_RESERVE_PROOF::
 	
 	// compute signature prefix hash
 	std::string prefix_data = req.message;
-	prefix_data.append((const char*)&address, sizeof(CryptoNote::AccountPublicAddress));
+	prefix_data.append((const char*)&address, sizeof(DynexCN::AccountPublicAddress));
 	for (size_t i = 0; i < proofs.size(); ++i) {
 		prefix_data.append((const char*)&proofs[i].key_image, sizeof(Crypto::PublicKey));
 	}
@@ -1773,7 +1773,7 @@ bool RpcServer::on_check_reserve_proof(const K_COMMAND_RPC_CHECK_RESERVE_PROOF::
 	for (size_t i = 0; i < proofs.size(); ++i) {
 		const reserve_proof_entry& proof = proofs[i];
 
-		CryptoNote::TransactionPrefix tx = *static_cast<const TransactionPrefix*>(&transactions[i]);
+		DynexCN::TransactionPrefix tx = *static_cast<const TransactionPrefix*>(&transactions[i]);
     
 		bool unlocked = m_core.is_tx_spendtime_unlocked(tx.unlockTime, req.height);
 

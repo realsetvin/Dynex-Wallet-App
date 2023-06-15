@@ -27,7 +27,7 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 // Parts of this project are originally copyright by:
-// Copyright (c) 2012-2016, The CryptoNote developers, The Bytecoin developers
+// Copyright (c) 2012-2016, The DynexCN developers, The Bytecoin developers
 // Copyright (c) 2014-2018, The Monero project
 // Copyright (c) 2014-2018, The Forknote developers
 // Copyright (c) 2018, The TurtleCoin developers
@@ -49,16 +49,16 @@
 
 #include "Common/Math.h"
 
-namespace CryptoNote {
+namespace DynexCN {
 
 class core;
 class NodeServer;
 class BlockchainExplorer;
-class ICryptoNoteProtocolQuery;
+class IDynexCNProtocolQuery;
 
 class RpcServer : public HttpServer {
 public:
-  RpcServer(System::Dispatcher& dispatcher, Logging::ILogger& log, core& c, NodeServer& p2p, ICryptoNoteProtocolQuery& protocolQuery);
+  RpcServer(System::Dispatcher& dispatcher, Logging::ILogger& log, core& c, NodeServer& p2p, IDynexCNProtocolQuery& protocolQuery);
 
   typedef std::function<bool(RpcServer*, const HttpRequest& request, HttpResponse& response)> HandlerFunction;
   bool restrictRPC(const bool is_resctricted);
@@ -143,7 +143,7 @@ private:
   core& m_core;
   NodeServer& m_p2p;
   BlockchainExplorerDataBuilder blockchainExplorerDataBuilder;
-  const ICryptoNoteProtocolQuery& m_protocolQuery;
+  const IDynexCNProtocolQuery& m_protocolQuery;
   bool m_restricted_rpc;
   std::string m_cors_domain;
   std::string m_fee_address;
