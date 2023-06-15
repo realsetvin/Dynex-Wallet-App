@@ -123,7 +123,7 @@ typedef std::vector< value_type > state_type;
 #endif 
 
 
-#include "CryptoNoteCore/Currency.h" // CryptoNote::AccountPublicAddress
+#include "DynexCNCore/Currency.h" // DynexCN::AccountPublicAddress
 
 //---------------------------------------------------------------------------------------------------------------------------
 // oberver & protocol handler
@@ -1387,14 +1387,14 @@ namespace Dynex {
 			  	uint64_t 							dynex_minute_rate;
 			  	bool 								dynex_chips_running = false; 
 			  	int 								dynex_chip_state = DYNEX_STATE_OFF; 
-			  	CryptoNote::AccountPublicAddress 	dynex_chip_receiving_adr;
+			  	DynexCN::AccountPublicAddress 	dynex_chip_receiving_adr;
 			  	std::atomic_bool 					dynex_quit_flag ;
 
 			  	bool init() {
 			    	return true;
 			    };
 			    
-			    bool start(const CryptoNote::AccountPublicAddress& adr, size_t threads_count, uint64_t _dynex_minute_rate) {  
+			    bool start(const DynexCN::AccountPublicAddress& adr, size_t threads_count, uint64_t _dynex_minute_rate) {  
 			    	//already running?
 			    	if (dynex_chips_running) {
 			    		std::cout << log_time() << TEXT_CYAN <<"[DYNEX CHIP] CANNOT START DYNEX CHIPS - ALREADY RUNNING" << TEXT_DEFAULT << std::endl;
@@ -1403,7 +1403,7 @@ namespace Dynex {
 			    	
 			    	// set receiving address, threads, rate, etc:
 			    	const uint64_t CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX       = 0xb9;
-			    	std::string addr_str = CryptoNote::getAccountAddressAsStr(CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX, adr);
+			    	std::string addr_str = DynexCN::getAccountAddressAsStr(CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX, adr);
 			    	dynex_chip_receiving_adr = adr;
 			    	dynex_chip_threads = threads_count;
 			    	dynex_minute_rate = _dynex_minute_rate; 
