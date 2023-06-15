@@ -1,21 +1,21 @@
 // Copyright (c) 2021-2022, Dynex Developers
-// 
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,9 +25,9 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 // Parts of this project are originally copyright by:
-// Copyright (c) 2012-2016, The CryptoNote developers, The Bytecoin developers
+// Copyright (c) 2012-2016, The DynexCN developers, The Bytecoin developers
 // Copyright (c) 2014-2018, The Monero project
 // Copyright (c) 2014-2018, The Forknote developers
 // Copyright (c) 2018, The TurtleCoin developers
@@ -44,9 +44,9 @@
 #include <thread>
 #include "Common/StreamTools.h"
 #include "Common/StringTools.h"
-#include "CryptoNoteCore/CryptoNoteBasicImpl.h"
-#include "CryptoNoteCore/CryptoNoteFormatUtils.h"
-#include "CryptoNoteCore/TransactionApi.h"
+#include "DynexCNCore/DynexCNBasicImpl.h"
+#include "DynexCNCore/DynexCNFormatUtils.h"
+#include "DynexCNCore/TransactionApi.h"
 
 using namespace Common;
 using namespace Crypto;
@@ -56,13 +56,13 @@ namespace {
 
 const int RETRY_TIMEOUT = 5;
 
-std::ostream& operator<<(std::ostream& os, const CryptoNote::IBlockchainConsumer* consumer) {
+std::ostream& operator<<(std::ostream& os, const DynexCN::IBlockchainConsumer* consumer) {
   return os << "0x" << std::setw(8) << std::setfill('0') << std::hex << reinterpret_cast<uintptr_t>(consumer) << std::dec << std::setfill(' ');
 }
 
 class TransactionReaderListFormatter {
 public:
-  explicit TransactionReaderListFormatter(const std::vector<std::unique_ptr<CryptoNote::ITransactionReader>>& transactionList) :
+  explicit TransactionReaderListFormatter(const std::vector<std::unique_ptr<DynexCN::ITransactionReader>>& transactionList) :
     m_transactionList(transactionList) {
   }
 
@@ -85,12 +85,12 @@ public:
   }
 
 private:
-  const std::vector<std::unique_ptr<CryptoNote::ITransactionReader>>& m_transactionList;
+  const std::vector<std::unique_ptr<DynexCN::ITransactionReader>>& m_transactionList;
 };
 
 }
 
-namespace CryptoNote {
+namespace DynexCN {
 
 BlockchainSynchronizer::BlockchainSynchronizer(INode& node, Logging::ILogger& logger, const Hash& genesisBlockHash) :
   m_logger(logger, "BlockchainSynchronizer"),
@@ -554,8 +554,10 @@ void BlockchainSynchronizer::processBlocks(GetBlocksResponse& response) {
       if (m_node.getLastKnownBlockHeight() != m_node.getLastLocalBlockHeight()) {
         m_logger(DEBUGGING) << "Blockchain updated, resume blockchain synchronization";
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      } else {
+        break;
       }
-      break;
+      // fallthrough
 
     case UpdateConsumersResult::addedNewBlocks:
       setFutureState(State::blockchainSync);
