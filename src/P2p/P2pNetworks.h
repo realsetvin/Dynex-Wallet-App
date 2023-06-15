@@ -27,7 +27,7 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 // Parts of this project are originally copyright by:
-// Copyright (c) 2012-2016, The CryptoNote developers, The Bytecoin developers
+// Copyright (c) 2012-2016, The DynexCN developers, The Bytecoin developers
 // Copyright (c) 2014-2018, The Monero project
 // Copyright (c) 2014-2018, The Forknote developers
 // Copyright (c) 2018, The TurtleCoin developers
@@ -37,7 +37,7 @@
 
 #pragma once
 
-namespace CryptoNote
+namespace DynexCN
 {
   //const static boost::uuids::uuid BYTECOIN_NETWORK = { { 0xad, 0x3f, 0xc2, 0x5f, 0x72, 0x1a, 0x4b, 0xcf, 0xdd, 0xe5, 0x0a, 0x91, 0x1d, 0x51, 0xfa, 0xaa } };
   //dynexsolve-testnet:
