@@ -27,7 +27,7 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 // Parts of this project are originally copyright by:
-// Copyright (c) 2012-2016, The CryptoNote developers, The Bytecoin developers
+// Copyright (c) 2012-2016, The DynexCN developers, The Bytecoin developers
 // Copyright (c) 2014-2018, The Monero project
 // Copyright (c) 2014-2018, The Forknote developers
 // Copyright (c) 2018, The TurtleCoin developers
@@ -40,7 +40,7 @@
 #include <cstddef>
 #include <initializer_list>
 
-namespace CryptoNote {
+namespace DynexCN {
 
 struct CheckpointData {
   uint32_t height;
@@ -67,7 +67,8 @@ const std::initializer_list<CheckpointData> CHECKPOINTS = {
   {70348,  "69580769b4e2f794cf9476d3192529ce270fe3303d68050bbd190d8e2d6ca71e"},
   {70404,  "e1c5cd42b496cdd7369c6a36b465d09fe96b3a33090c3b99f5a7570279badc37"},
   {108000, "30a2ccb7c7ddbb10283538b221d35a2f5720b2b874330588cda4c906c2104776"},
-  {112000, "b0d59a416ed0fb9ad16ac9ba035abd32f69d2f8d59ea64361a4c7421abf5f1d0"}
+  {112000, "b0d59a416ed0fb9ad16ac9ba035abd32f69d2f8d59ea64361a4c7421abf5f1d0"},
+  {201107, "e15b032814bbf463e16847907f57f89131ee07f7d72a38e7b1023ed5fdec3e32"}
 };
 
 }
