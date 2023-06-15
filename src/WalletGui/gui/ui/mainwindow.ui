@@ -117,30 +117,58 @@
     <property name="title">
      <string>File</string>
     </property>
-    <addaction name="m_createWalletAction"/>
+    <widget class="QMenu" name="menuRecent_wallets">
+     <property name="title">
+      <string>Recent wallets</string>
+     </property>
+    </widget>
     <addaction name="m_openWalletAction"/>
+    <addaction name="menuRecent_wallets"/>
     <addaction name="m_backupWalletAction"/>
+    <addaction name="m_closeWalletAction"/>
+    <addaction name="separator"/>    
+    <addaction name="m_createWalletAction"/>
+    <addaction name="m_createNondeterministicWalletAction"/>
+    <addaction name="separator"/>
     <addaction name="m_exitAction"/>
+   </widget>
+   <widget class="QMenu" name="menuWallet">
+    <property name="title">
+     <string>Wallet</string>
+    </property>
+    <addaction name="m_encryptWalletAction"/>
+    <addaction name="m_changePasswordAction"/>
+    <addaction name="m_resetAction"/>
+    <addaction name="separator"/>
+    <addaction name="m_showMnemonicSeedAction"/>
+    <addaction name="m_showPrivateKey"/>
+    <addaction name="separator"/>
+    <addaction name="m_restoreFromMnemonicSeedAction"/>
+    <addaction name="m_importKeysAction"/>
+    <addaction name="m_importKeyAction"/>
    </widget>
    <widget class="QMenu" name="menuSettings">
     <property name="title">
      <string>Settings</string>
     </property>
-    <addaction name="m_encryptWalletAction"/>
-    <addaction name="m_changePasswordAction"/>
+    <addaction name="m_connectionSettingsAction"/>
     <addaction name="separator"/>
     <addaction name="m_startOnLoginAction"/>
     <addaction name="m_minimizeToTrayAction"/>
     <addaction name="m_closeToTrayAction"/>
+    <addaction name="separator"/>
+    <addaction name="m_openLogFileAction"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
      <string>Help</string>
     </property>
+    <addaction name="actionHelp"/>
     <addaction name="m_aboutCryptonoteAction"/>
     <addaction name="m_aboutQtAction"/>
    </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuWallet"/>
    <addaction name="menuSettings"/>
    <addaction name="menuHelp"/>
   </widget>
@@ -268,6 +296,9 @@
    <property name="text">
     <string>Open wallet</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
   </action>
   <action name="m_encryptWalletAction">
    <property name="enabled">
@@ -293,7 +324,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>About</string>
+    <string>About wallet</string>
    </property>
   </action>
   <action name="m_aboutQtAction">
@@ -334,6 +365,75 @@
    </property>
    <property name="text">
     <string>Close to tray</string>
+   </property>
+  </action>
+  <action name="m_importKeyAction">
+   <property name="text">
+    <string>Restore from private key</string>
+   </property>
+  </action>
+  <action name="m_resetAction">
+   <property name="text">
+    <string>Reset (rescan) wallet</string>
+   </property>
+  </action>
+  <action name="m_showPrivateKey">
+   <property name="text">
+    <string>Show private keys</string>
+   </property>
+  </action>
+  <action name="m_closeWalletAction">
+   <property name="text">
+    <string>Close wallet</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+W</string>
+   </property>
+  </action>
+  <action name="m_recentWalletsAction">
+   <property name="text">
+    <string>Recent wallets</string>
+   </property>
+  </action>
+  <action name="m_openLogFileAction">
+   <property name="text">
+    <string>Open log file</string>
+   </property>
+  </action>
+  <action name="m_showMnemonicSeedAction">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show mnemonic seed</string>
+   </property>
+  </action>
+  <action name="m_restoreFromMnemonicSeedAction">
+   <property name="text">
+    <string>Restore from mnemonic seed</string>
+   </property>
+  </action>
+  <action name="m_createNondeterministicWalletAction">
+   <property name="text">
+    <string>Create nondeterministic wallet</string>
+   </property>
+  </action>
+  <action name="m_importKeysAction">
+   <property name="text">
+    <string>Restore from keys</string>
+   </property>
+  </action>
+  <action name="actionHelp">
+   <property name="text">
+    <string>Help</string>
+   </property>
+   <property name="shortcut">
+    <string>F1</string>
+   </property>
+  </action>
+  <action name="m_connectionSettingsAction">
+   <property name="text">
+    <string>Connection</string>
    </property>
   </action>
  </widget>
@@ -613,6 +713,182 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>m_resetAction</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>resetWallet()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_importKeyAction</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>importKey()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_showPrivateKey</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>showPrivateKeys()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_openLogFileAction</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>openLogFile()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_showMnemonicSeedAction</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>showMnemonicSeed()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_restoreFromMnemonicSeedAction</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>restoreFromMnemonicSeed()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_createNondeterministicWalletAction</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>createNonDeterministicWallet()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_importKeysAction</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>importKeys()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_closeWalletAction</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>closeWallet()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionHelp</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>DisplayCmdLineHelp()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>m_connectionSettingsAction</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>openConnectionSettings()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>createWallet()</slot>
@@ -624,5 +900,11 @@
   <slot>setStartOnLogin(bool)</slot>
   <slot>setMinimizeToTray(bool)</slot>
   <slot>setCloseToTray(bool)</slot>
+  <slot>importKey()</slot>
+  <slot>resetWallet()</slot>
+  <slot>showPrivateKeys()</slot>
+  <slot>openLogFile()</slot>
+  <slot>DisplayCmdLineHelp()</slot>
+  <slot>openConnectionSettings()</slot>
  </slots>
 </ui>

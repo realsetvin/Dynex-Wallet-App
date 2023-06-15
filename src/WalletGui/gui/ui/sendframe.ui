@@ -94,7 +94,7 @@
        </property>
       </widget>
      </item>
-     <item row="0" column="1" colspan="3">
+     <item row="0" column="1" colspan="5">
       <widget class="QLineEdit" name="m_paymentIdEdit"/>
      </item>
      <item row="1" column="0">
@@ -158,6 +158,56 @@
        </property>
       </widget>
      </item>
+     <item row="1" column="4">
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Fee: </string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="5">
+      <widget class="QDoubleSpinBox" name="m_feeSpin">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>150</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="baseSize">
+        <size>
+         <width>150</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="cursor">
+        <cursorShape>IBeamCursor</cursorShape>
+       </property>
+       <property name="locale">
+        <locale language="English" country="UnitedStates"/>
+       </property>
+       <property name="suffix">
+        <string/>
+       </property>
+       <property name="decimals">
+        <number>8</number>
+       </property>
+       <property name="minimum">
+        <double>0.000100000000000</double>
+       </property>
+       <property name="maximum">
+        <double>9999.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.000100000000000</double>
+       </property>
+       <property name="value">
+        <double>0.000100000000000</double>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
    <item>
@@ -174,17 +224,6 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="m_clearAllButton">
-       <property name="text">
-        <string>Clear All</string>
-       </property>
-       <property name="icon">
-        <iconset resource="../../resources.qrc">
-         <normaloff>:/icons/remove</normaloff>:/icons/remove</iconset>
-       </property>
-      </widget>
-     </item>
-     <item>
       <widget class="QPushButton" name="m_addRecipientButton">
        <property name="text">
         <string>Add Recipient</string>
@@ -192,6 +231,17 @@
        <property name="icon">
         <iconset resource="../../resources.qrc">
          <normaloff>:/icons/add</normaloff>:/icons/add</iconset>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="m_clearAllButton">
+       <property name="text">
+        <string>Clear All</string>
+       </property>
+       <property name="icon">
+        <iconset resource="../../resources.qrc">
+         <normaloff>:/icons/remove</normaloff>:/icons/remove</iconset>
        </property>
       </widget>
      </item>
@@ -253,7 +303,7 @@
    <slot>addRecipientClicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>282</x>
+     <x>309</x>
      <y>561</y>
     </hint>
     <hint type="destinationlabel">
@@ -269,7 +319,7 @@
    <slot>clearAllClicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>154</x>
+     <x>181</x>
      <y>561</y>
     </hint>
     <hint type="destinationlabel">
