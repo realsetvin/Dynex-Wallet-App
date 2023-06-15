@@ -27,7 +27,7 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 // Parts of this project are originally copyright by:
-// Copyright (c) 2012-2016, The CryptoNote developers, The Bytecoin developers
+// Copyright (c) 2012-2016, The DynexCN developers, The Bytecoin developers
 // Copyright (c) 2014-2018, The Monero project
 // Copyright (c) 2014-2018, The Forknote developers
 // Copyright (c) 2018, The TurtleCoin developers
@@ -36,14 +36,14 @@
 
 
 #include "crypto/crypto.h" //for rand()
-#include "CryptoNoteCore/Account.h"
-#include "CryptoNoteCore/CryptoNoteFormatUtils.h"
-#include "CryptoNoteCore/CryptoNoteTools.h"
+#include "DynexCNCore/Account.h"
+#include "DynexCNCore/DynexCNFormatUtils.h"
+#include "DynexCNCore/DynexCNTools.h"
 
 #include "WalletLegacy/WalletTransactionSender.h"
 #include "WalletLegacy/WalletUtils.h"
 
-#include "CryptoNoteCore/CryptoNoteBasicImpl.h"
+#include "DynexCNCore/DynexCNBasicImpl.h"
 
 #include <Logging/LoggerGroup.h>
 
@@ -53,7 +53,7 @@ using namespace Crypto;
 
 namespace {
 
-using namespace CryptoNote;
+using namespace DynexCN;
 
 uint64_t countNeededMoney(uint64_t fee, const std::vector<WalletLegacyTransfer>& transfers) {
   uint64_t needed_money = fee;
@@ -98,7 +98,7 @@ std::shared_ptr<WalletLegacyEvent> makeCompleteEvent(WalletUserTransactionsCache
 
 } //namespace
 
-namespace CryptoNote {
+namespace DynexCN {
 
 WalletTransactionSender::WalletTransactionSender(const Currency& currency, WalletUserTransactionsCache& transactionsCache, AccountKeys keys, ITransfersContainer& transfersContainer) :
   m_currency(currency),
@@ -133,7 +133,7 @@ std::shared_ptr<WalletRequest> WalletTransactionSender::makeSendRequest(Transact
   mixIn = 0;
   /////////////////////////////////////////////////////////////////////
 
-  using namespace CryptoNote;
+  using namespace DynexCN;
 
   throwIf(transfers.empty(), error::ZERO_DESTINATION);
   validateTransfersAddresses(transfers);
@@ -161,7 +161,7 @@ std::shared_ptr<WalletRequest> WalletTransactionSender::makeSendRequest(Transact
 std::shared_ptr<WalletRequest> WalletTransactionSender::makeSendDustRequest(TransactionId& transactionId, std::deque<std::shared_ptr<WalletLegacyEvent>>& events,
 	const std::vector<WalletLegacyTransfer>& transfers, uint64_t fee, const std::string& extra, uint64_t mixIn, uint64_t unlockTimestamp) {
 
-	using namespace CryptoNote;
+	using namespace DynexCN;
 
 	throwIf(transfers.empty(), error::ZERO_DESTINATION);
 	validateTransfersAddresses(transfers);
@@ -187,7 +187,7 @@ std::shared_ptr<WalletRequest> WalletTransactionSender::makeSendDustRequest(Tran
 std::shared_ptr<WalletRequest> WalletTransactionSender::makeSendFusionRequest(TransactionId& transactionId, std::deque<std::shared_ptr<WalletLegacyEvent>>& events,
 	const std::vector<WalletLegacyTransfer>& transfers, const std::list<TransactionOutputInformation>& fusionInputs, uint64_t fee, const std::string& extra, uint64_t mixIn, uint64_t unlockTimestamp) {
 
-	using namespace CryptoNote;
+	using namespace DynexCN;
 
 	throwIf(transfers.empty(), error::ZERO_DESTINATION);
 	validateTransfersAddresses(transfers);
@@ -600,4 +600,4 @@ uint64_t WalletTransactionSender::selectDustTransfersToSend(uint64_t neededMoney
 }
 
 
-} /* namespace CryptoNote */
+} /* namespace DynexCN */
